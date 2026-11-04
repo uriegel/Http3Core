@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Http3Core/Http3Core.csproj" />
+  <Project Path="Http3Test/Http3Test.csproj" />
+</Solution>

@@ -2,3 +2,7 @@ Http3Core/bin
 Http3Core/obj
 Http3Test/bin
 Http3Test/obj
+Http3Core.QuicClient/bin
+Http3Core.QuicClient/obj
+Http3Core.QuicServer/bin
+Http3Core.QuicServer/obj

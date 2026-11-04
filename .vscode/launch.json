@@ -17,7 +17,43 @@
             "justMyCode": false,
             "enableStepFiltering": true,
             "console": "internalConsole"
+        }, {
+            "name": "QuicServer",
+            "type": "coreclr",
+            "request": "launch",
+            "requireExactSource": true, 
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/Http3Core.QuicServer/bin/Debug/net10.0/Http3Core.QuicServer.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Http3Core.QuicServer",
+            "stopAtEntry": false,
+            "justMyCode": false,
+            "enableStepFiltering": true,
+            "console": "internalConsole"
+        }, {
+            "name": "QuicClient",
+            "type": "coreclr",
+            "request": "launch",
+            "requireExactSource": true, 
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/Http3Core.QuicClient/bin/Debug/net10.0/Http3Core.QuicClient.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Http3Core.QuicClient",
+            "stopAtEntry": false,
+            "justMyCode": false,
+            "enableStepFiltering": true,
+            "console": "internalConsole"
         }
-    ]
+    ], 
+    "compounds": [
+        {
+            "name": "Server + Client",
+            "configurations": [
+                "QuicServer",
+                "QuicClient"
+            ],
+            "stopAll": true
+        }
+    ]    
 }
 

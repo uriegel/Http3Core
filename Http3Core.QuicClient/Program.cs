@@ -45,9 +45,17 @@ static async Task SendMessageAsync(QuicConnection connection, int number)
     await stream.WriteAsync(message);
     stream.CompleteWrites();
 
+    using var memory = new MemoryStream();
     var buffer = new byte[1024];
-    var bytesRead = await stream.ReadAsync(buffer);
-    var response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+
+    while (true)
+    {
+        var bytesRead = await stream.ReadAsync(buffer);
+        if (bytesRead == 0)
+            break;
+        memory.Write(buffer, 0, bytesRead);
+    }
+    var response = Encoding.UTF8.GetString(memory.ToArray());
     Console.WriteLine($"Stream {stream.Id}: {response}");
 }
 

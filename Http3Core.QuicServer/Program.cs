@@ -55,17 +55,34 @@ static async Task HandleConnectionAsync(QuicConnection connection)
 {
     await using (connection)
     {
-        await using var stream = await connection.AcceptInboundStreamAsync();
+        Console.WriteLine("Handling connection...");
 
+        var tasks = new List<Task>();
+        // Accept three incoming streams
+        for (int i = 0; i < 3; i++)
+        {
+            var stream = await connection.AcceptInboundStreamAsync();
+            Console.WriteLine($"Accepted stream {stream.Id}");
+            tasks.Add(HandleStreamAsync(stream));
+        }
+
+        // Wait until all three streams have been processed
+        await Task.WhenAll(tasks);
+
+        Console.WriteLine("All streams completed.");
+    }
+}
+
+static async Task HandleStreamAsync(QuicStream stream)
+{
+    await using (stream)
+    {
         var buffer = new byte[1024];
-
         var bytesRead = await stream.ReadAsync(buffer);
-
         var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        Console.WriteLine($"Stream {stream.Id}: {message}");
 
-        Console.WriteLine($"Received: {message}");
-
-        var response = Encoding.UTF8.GetBytes("Hello from QUIC server!");
+        var response = Encoding.UTF8.GetBytes($"Response to: {message}");
 
         await stream.WriteAsync(response);
         stream.CompleteWrites();

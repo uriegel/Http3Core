@@ -2,6 +2,7 @@
 using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Authentication;
+using System.Text;
 
 var connectionOptions = new QuicClientConnectionOptions
 {
@@ -32,19 +33,24 @@ Console.WriteLine("QUIC connection established!");
 Console.WriteLine($"Remote endpoint: {connection.RemoteEndPoint}");
 Console.WriteLine($"Negotiated ALPN: {connection.NegotiatedApplicationProtocol}");
 
-await using var stream =
-    await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
+var tasks = Enumerable.Range(1, 3)
+    .Select(i => SendMessageAsync(connection, i));
 
-var message = System.Text.Encoding.UTF8.GetBytes("Hello from QUIC client!");
+await Task.WhenAll(tasks);
 
-await stream.WriteAsync(message);
+static async Task SendMessageAsync(QuicConnection connection, int number)
+{
+    await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
+    var message = Encoding.UTF8.GetBytes($"Hello from client, message {number}");
+    await stream.WriteAsync(message);
+    stream.CompleteWrites();
 
-stream.CompleteWrites();
+    var buffer = new byte[1024];
+    var bytesRead = await stream.ReadAsync(buffer);
+    var response = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+    Console.WriteLine($"Stream {stream.Id}: {response}");
+}
 
-var buffer = new byte[1024];
 
-var bytesRead = await stream.ReadAsync(buffer);
 
-var response = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
 
-Console.WriteLine($"Server response: {response}");

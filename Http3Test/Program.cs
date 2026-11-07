@@ -25,3 +25,11 @@ foreach (var value in values)
     if (value != decoded)
         throw new Exception("Encoding/decoding error!");
 }
+
+await using var frameStream = new MemoryStream();
+await Http3FrameWriter.WriteSettingsAsync(frameStream);
+var frameBytes = frameStream.ToArray();
+Console.WriteLine($"SETTINGS frame: {Convert.ToHexString(frameBytes)}");
+
+if (Convert.ToHexString(frameBytes) != "0400")
+    throw new Exception("Invalid SETTINGS frame!");

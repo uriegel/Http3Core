@@ -6,6 +6,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CsTools.Extensions;
 
+var unidirectional = false;
+
 var certificate = X509CertificateLoader.LoadPkcs12FromFile(
     Certificate.EncryptDirectory.AppendPath("certificate.pfx"),
     Certificate.GetPfxPassword());
@@ -46,12 +48,12 @@ Console.WriteLine($"QUIC server listening on {listener.LocalEndPoint}");
 
 while (true)
 {
-    await using var connection = await listener.AcceptConnectionAsync();
+    var connection = await listener.AcceptConnectionAsync();
     Console.WriteLine($"Connection established: {connection.RemoteEndPoint}");
     _ = HandleConnectionAsync(connection);
 }
 
-static async Task HandleConnectionAsync(QuicConnection connection)
+async Task HandleConnectionAsync(QuicConnection connection)
 {
     await using (connection)
     {
@@ -59,17 +61,24 @@ static async Task HandleConnectionAsync(QuicConnection connection)
 
         var tasks = new List<Task>();
         // Accept three incoming streams
-        for (int i = 0; i < 3; i++)
+        while (true)
         {
-            var stream = await connection.AcceptInboundStreamAsync();
-            Console.WriteLine($"Accepted stream {stream.Id}");
-            tasks.Add(HandleStreamAsync(stream));
+            try
+            {
+                var stream = await connection.AcceptInboundStreamAsync();
+                Console.WriteLine($"Accepted stream {stream.Id}");
+                Console.WriteLine($"Stream type: {stream.Type}");
+                if (unidirectional)
+                    tasks.Add(HandleUnidirectionalStreamAsync(stream));
+                else
+                    tasks.Add(HandleStreamAsync(stream));
+            }
+            catch (QuicException ex)
+            {
+                Console.WriteLine($"Connection closed: {ex.Message}");
+                break;
+            }
         }
-
-        // Wait until all three streams have been processed
-        await Task.WhenAll(tasks);
-
-        Console.WriteLine("All streams completed.");
     }
 }
 
@@ -90,9 +99,33 @@ static async Task HandleStreamAsync(QuicStream stream)
 
         var message = Encoding.UTF8.GetString(memory.ToArray());
         Console.WriteLine($"Stream {stream.Id}: {message}");
-        
+
         var response = Encoding.UTF8.GetBytes($"Response to: {message}");
         await stream.WriteAsync(response);
         stream.CompleteWrites();
     }
 }
+
+static async Task HandleUnidirectionalStreamAsync(QuicStream stream)
+{
+    await using (stream)
+    {
+        using var memory = new MemoryStream();
+        var buffer = new byte[1024];
+
+        while (true)
+        {
+            var bytesRead = await stream.ReadAsync(buffer);
+
+            if (bytesRead == 0)
+                break;
+
+            memory.Write(buffer, 0, bytesRead);
+        }
+
+        var message = Encoding.UTF8.GetString(memory.ToArray());
+
+        Console.WriteLine($"Unidirectional stream {stream.Id}: {message}");
+    }
+}   
+

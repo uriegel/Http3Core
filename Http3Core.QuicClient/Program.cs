@@ -4,6 +4,8 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Text;
 
+var unidirectional = false;
+
 var connectionOptions = new QuicClientConnectionOptions
 {
     RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 5000),
@@ -33,10 +35,19 @@ Console.WriteLine("QUIC connection established!");
 Console.WriteLine($"Remote endpoint: {connection.RemoteEndPoint}");
 Console.WriteLine($"Negotiated ALPN: {connection.NegotiatedApplicationProtocol}");
 
-var tasks = Enumerable.Range(1, 3)
-    .Select(i => SendMessageAsync(connection, i));
+if (unidirectional)
+{
+    await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
+    var message = Encoding.UTF8.GetBytes("Hello over a unidirectional stream!");
+    await stream.WriteAsync(message, completeWrites: true);
+}
+else
+{
+    var tasks = Enumerable.Range(1, 3)
+        .Select(i => SendMessageAsync(connection, i));
 
-await Task.WhenAll(tasks);
+    await Task.WhenAll(tasks);
+}
 
 static async Task SendMessageAsync(QuicConnection connection, int number)
 {

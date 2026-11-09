@@ -5,8 +5,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using CsTools.Extensions;
-
-var unidirectional = false;
+using Http3Core.Protocol;
 
 var certificate = X509CertificateLoader.LoadPkcs12FromFile(
     Certificate.EncryptDirectory.AppendPath("certificate.pfx"),
@@ -68,7 +67,14 @@ async Task HandleConnectionAsync(QuicConnection connection)
                 var stream = await connection.AcceptInboundStreamAsync();
                 Console.WriteLine($"Accepted stream {stream.Id}");
                 Console.WriteLine($"Stream type: {stream.Type}");
-                if (unidirectional)
+                var streamType = await QuicVariableInteger.ReadAsync(stream);
+                Console.WriteLine($"Stream type: 0x{streamType:X}");       
+                var frameType = await QuicVariableInteger.ReadAsync(stream);
+                var frameLength = await QuicVariableInteger.ReadAsync(stream);
+
+                Console.WriteLine($"Frame type: 0x{frameType:X}");
+                Console.WriteLine($"Frame length: {frameLength}");                         
+                if (stream.Type == QuicStreamType.Unidirectional)
                     tasks.Add(HandleUnidirectionalStreamAsync(stream));
                 else
                     tasks.Add(HandleStreamAsync(stream));

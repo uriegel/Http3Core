@@ -3,8 +3,9 @@ using System.Net.Quic;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Text;
+using Http3Core.Protocol;
 
-var unidirectional = false;
+var unidirectional = true;
 
 var connectionOptions = new QuicClientConnectionOptions
 {
@@ -49,6 +50,12 @@ else
     await Task.WhenAll(tasks);
 }
 
+await using var stream2 = await connection.OpenOutboundStreamAsync(
+QuicStreamType.Unidirectional);
+
+await QuicVariableInteger.WriteAsync(stream2, 0x00);
+await Http3FrameWriter.WriteSettingsAsync(stream2);
+
 static async Task SendMessageAsync(QuicConnection connection, int number)
 {
     await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
@@ -69,7 +76,5 @@ static async Task SendMessageAsync(QuicConnection connection, int number)
     var response = Encoding.UTF8.GetString(memory.ToArray());
     Console.WriteLine($"Stream {stream.Id}: {response}");
 }
-
-
 
 

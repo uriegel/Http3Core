@@ -11,4 +11,8 @@
     <PackageReference Include="CsTools" Version="9.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../Http3Core/Http3Core.csproj" />
+  </ItemGroup>
+
 </Project>

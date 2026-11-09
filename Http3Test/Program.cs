@@ -33,3 +33,4 @@ Console.WriteLine($"SETTINGS frame: {Convert.ToHexString(frameBytes)}");
 
 if (Convert.ToHexString(frameBytes) != "0400")
     throw new Exception("Invalid SETTINGS frame!");
+    

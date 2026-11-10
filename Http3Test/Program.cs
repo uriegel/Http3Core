@@ -34,3 +34,8 @@ Console.WriteLine($"SETTINGS frame: {Convert.ToHexString(frameBytes)}");
 if (Convert.ToHexString(frameBytes) != "0400")
     throw new Exception("Invalid SETTINGS frame!");
     
+frameStream.Position = 0;
+var frame = await Http3FrameReader.ReadAsync(frameStream);
+
+Console.WriteLine($"Frame type: 0x{frame.Type:X}");
+Console.WriteLine($"Payload length: {frame.Payload.Length}");    

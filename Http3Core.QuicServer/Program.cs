@@ -58,8 +58,14 @@ async Task HandleConnectionAsync(QuicConnection connection)
     {
         Console.WriteLine("Handling connection...");
 
+        await using var controlStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
+        await QuicVariableInteger.WriteAsync(controlStream, 0x00);
+        await Http3FrameWriter.WriteSettingsAsync(controlStream);
+
+        Console.WriteLine("Server control stream opened.");
+
         var tasks = new List<Task>();
-        // Accept three incoming streams
+        // Accept incoming streams
         while (true)
         {
             try

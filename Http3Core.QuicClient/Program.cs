@@ -5,11 +5,13 @@ using System.Security.Authentication;
 using System.Text;
 using Http3Core.Protocol;
 
-var unidirectional = true;
+var unidirectional = false;
 
 var connectionOptions = new QuicClientConnectionOptions
 {
     RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 5000),
+
+    MaxInboundUnidirectionalStreams = 3,
 
     DefaultStreamErrorCode = 0x100,
     DefaultCloseErrorCode = 0x100,

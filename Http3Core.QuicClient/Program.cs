@@ -58,6 +58,11 @@ QuicStreamType.Unidirectional);
 await QuicVariableInteger.WriteAsync(stream2, 0x00);
 await Http3FrameWriter.WriteSettingsAsync(stream2);
 
+Console.WriteLine("Client control stream opened.");
+Console.WriteLine("Press ENTER to close the connection.");
+
+Console.ReadLine();
+
 static async Task SendMessageAsync(QuicConnection connection, int number)
 {
     await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);

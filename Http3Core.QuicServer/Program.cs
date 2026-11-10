@@ -49,7 +49,10 @@ while (true)
 {
     var connection = await listener.AcceptConnectionAsync();
     Console.WriteLine($"Connection established: {connection.RemoteEndPoint}");
-    _ = HandleConnectionAsync(connection);
+
+    var http3Connection = new Http3Connection(connection);
+    await http3Connection.RunAsync();    
+    // _ = HandleConnectionAsync(connection);
 }
 
 async Task HandleConnectionAsync(QuicConnection connection)

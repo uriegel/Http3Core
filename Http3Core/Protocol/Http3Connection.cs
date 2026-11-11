@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Quic;
 
 namespace Http3Core.Protocol;
@@ -8,22 +9,37 @@ public sealed class Http3Connection
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            QuicStream stream;
-
-            try
+            while (!cancellationToken.IsCancellationRequested)
             {
-                stream = await connection.AcceptInboundStreamAsync(cancellationToken);
-            }
-            catch (QuicException ex)
-            {
-                Console.WriteLine($"QUIC connection closed: {ex.QuicError}");
-                break;
-            }
+                QuicStream stream;
 
-            _ = HandleStreamAsync(stream, cancellationToken);
+                try
+                {
+                    stream = await connection.AcceptInboundStreamAsync(cancellationToken);
+                }
+                catch (QuicException ex)
+                {
+                    Console.WriteLine($"QUIC connection closed: {ex.QuicError}");
+                    break;
+                }
+
+                var task = HandleStreamAsync(stream, cancellationToken);
+                activeStreams[stream.Id] = task;
+                _ = RemoveCompletedStreamAsync(stream.Id, task);                
+            }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Console.WriteLine("HTTP/3 connection shutting down.");
+        }
+        finally
+        {
+            Console.WriteLine($"Waiting for {activeStreams.Count} active stream handlers...");
+            await Task.WhenAll([.. activeStreams.Values]);
+            Console.WriteLine("All stream handlers finished.");
+        }        
     }
 
     async Task HandleStreamAsync(QuicStream stream, CancellationToken cancellationToken)
@@ -99,6 +115,19 @@ public sealed class Http3Connection
         }
     }
 
+    async Task RemoveCompletedStreamAsync(long streamId, Task task)
+    {
+        try
+        {
+            await task;
+        }
+        finally
+        {
+            activeStreams.TryRemove(streamId, out _);
+        }
+    }    
+
     readonly QuicConnection connection;
+    readonly ConcurrentDictionary<long, Task> activeStreams = [];
     int controlStreamReceived;
 }

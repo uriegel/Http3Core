@@ -39,3 +39,19 @@ var frame = await Http3FrameReader.ReadAsync(frameStream);
 
 Console.WriteLine($"Frame type: 0x{frame.Type:X}");
 Console.WriteLine($"Payload length: {frame.Payload.Length}");    
+
+var settings = new Http3Settings();
+
+settings.Set(Http3Settings.QpackMaxTableCapacity, 4096);
+settings.Set(Http3Settings.MaxFieldSectionSize, 65536);
+settings.Set(Http3Settings.QpackBlockedStreams, 10);
+
+// Reserved identifier used to test handling of unknown settings.
+settings.Set(0x21, 0);
+
+var payload = await settings.EncodePayloadAsync();
+Console.WriteLine($"SETTINGS payload: {Convert.ToHexString(payload)}");
+
+var decoded1 = await Http3Settings.DecodePayloadAsync(payload);
+foreach (var setting in decoded1.Values)
+    Console.WriteLine($"Setting 0x{setting.Key:X} = {setting.Value}");

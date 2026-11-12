@@ -5,8 +5,6 @@ using System.Security.Authentication;
 using System.Text;
 using Http3Core.Protocol;
 
-var unidirectional = false;
-
 var connectionOptions = new QuicClientConnectionOptions
 {
     RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 5000),
@@ -29,44 +27,54 @@ var connectionOptions = new QuicClientConnectionOptions
     }
 };
 
-await Task.Delay(2000);
-
-await using var connection =
-    await QuicConnection.ConnectAsync(connectionOptions);
+await using var connection = await QuicConnection.ConnectAsync(connectionOptions);
 
 Console.WriteLine("QUIC connection established!");
 Console.WriteLine($"Remote endpoint: {connection.RemoteEndPoint}");
 Console.WriteLine($"Negotiated ALPN: {connection.NegotiatedApplicationProtocol}");
 
-if (unidirectional)
+// Open the client's HTTP/3 control stream.
+await using var controlStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
+
+// Identify it as a control stream.
+await QuicVariableInteger.WriteAsync(controlStream, Http3StreamType.Control);
+
+// Send initial SETTINGS.
+var settings = new Http3Settings();
+
+settings.Set(Http3Settings.QpackMaxTableCapacity, 4096);
+settings.Set(Http3Settings.MaxFieldSectionSize, 65536);
+settings.Set(Http3Settings.QpackBlockedStreams, 10);
+settings.Set(0x21, 0);
+
+await Http3FrameWriter.WriteSettingsAsync(controlStream, settings);
+
+Console.WriteLine("Client control stream opened.");
+
+try
 {
-    await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
-    var message = Encoding.UTF8.GetBytes("Hello over a unidirectional stream!");
-    await stream.WriteAsync(message, completeWrites: true);
-}
-else
-{
+    // Temporary QUIC transport test.
     var tasks = Enumerable.Range(1, 3)
         .Select(i => SendMessageAsync(connection, i));
 
     await Task.WhenAll(tasks);
+
+    Console.WriteLine("All test streams completed.");
+
+    Console.WriteLine("Press ENTER to close the connection.");
+    Console.ReadLine();
 }
-
-await using var stream2 = await connection.OpenOutboundStreamAsync(
-QuicStreamType.Unidirectional);
-
-await QuicVariableInteger.WriteAsync(stream2, 0x00);
-await Http3FrameWriter.WriteSettingsAsync(stream2);
-
-Console.WriteLine("Client control stream opened.");
-Console.WriteLine("Press ENTER to close the connection.");
-
-Console.ReadLine();
+catch (Exception ex)
+{
+    Console.WriteLine($"Client error: {ex}");
+}
 
 static async Task SendMessageAsync(QuicConnection connection, int number)
 {
     await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
+
     var message = Encoding.UTF8.GetBytes($"Hello from client, message {number}");
+
     await stream.WriteAsync(message);
     stream.CompleteWrites();
 
@@ -76,12 +84,14 @@ static async Task SendMessageAsync(QuicConnection connection, int number)
     while (true)
     {
         var bytesRead = await stream.ReadAsync(buffer);
+
         if (bytesRead == 0)
             break;
+
         memory.Write(buffer, 0, bytesRead);
     }
+
     var response = Encoding.UTF8.GetString(memory.ToArray());
+
     Console.WriteLine($"Stream {stream.Id}: {response}");
 }
-
-

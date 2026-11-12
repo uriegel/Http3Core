@@ -14,4 +14,10 @@ public static class Http3FrameWriter
 
     public static ValueTask WriteSettingsAsync(Stream stream, CancellationToken cancellationToken = default)
         => WriteAsync(stream, SettingsFrameType, ReadOnlyMemory<byte>.Empty, cancellationToken);
+
+    public static async ValueTask WriteSettingsAsync(Stream stream, Http3Settings settings, CancellationToken cancellationToken = default)
+    {
+        var payload = await settings.EncodePayloadAsync(cancellationToken);
+        await WriteAsync(stream, SettingsFrameType, payload, cancellationToken);
+    }    
 }

@@ -5,6 +5,8 @@ namespace Http3Core.Protocol;
 
 public sealed class Http3Connection
 {
+    public Http3Settings? PeerSettings { get; private set; }
+    
     public Http3Connection(QuicConnection connection) => this.connection = connection;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -100,11 +102,15 @@ public sealed class Http3Connection
 
         // The first frame on a control stream MUST be SETTINGS.
         var frame = await Http3FrameReader.ReadAsync(stream, cancellationToken);
-
         if (frame.Type != Http3FrameWriter.SettingsFrameType)
             throw new InvalidDataException("The first control stream frame must be SETTINGS.");
 
         Console.WriteLine("Initial SETTINGS frame received.");
+
+        // Decode the SETTINGS payload.
+        PeerSettings = await Http3Settings.DecodePayloadAsync(frame.Payload, cancellationToken);
+        foreach (var setting in PeerSettings.Values)
+            Console.WriteLine($"Setting 0x{setting.Key:X} = {setting.Value}");
 
         // Further control frames will be handled here later.
         // Keep the stream open and wait for more frames.

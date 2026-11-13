@@ -36,4 +36,24 @@ public static class QpackHeaderFieldEncoder
 
         return [.. result, .. encodedValue];
     }   
+
+    public static byte[] EncodeLiteralWithLiteralName(string name, string value, bool neverIndexed = false)
+    {
+        var rawName = System.Text.Encoding.UTF8.GetBytes(name);
+        var huffmanName = QpackHuffman.Encode(rawName);
+
+        bool useHuffman = huffmanName.Length < rawName.Length;
+        byte[] nameBytes = useHuffman ? huffmanName : rawName;
+
+        var nameLength = QpackInteger.Encode((ulong)nameBytes.Length, 3);
+
+        // 001 N H NameLength
+        nameLength[0] |= (byte)(
+            0x20 |
+            (neverIndexed ? 0x10 : 0x00) |
+            (useHuffman ? 0x08 : 0x00));
+
+        var encodedValue = QpackString.Encode(value);
+        return [.. nameLength, .. nameBytes, .. encodedValue];
+    }
 }

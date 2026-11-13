@@ -163,3 +163,14 @@ var field = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceAsync(stre
 Console.WriteLine($"Name:          {field.Name}");
 Console.WriteLine($"Value:         {field.Value}");
 Console.WriteLine($"Never indexed: {field.NeverIndexed}");
+
+Console.WriteLine();
+
+var encoded7 = QpackHeaderFieldEncoder.EncodeLiteralWithLiteralName("x-custom-header", "hello");
+Console.WriteLine(Convert.ToHexString(encoded7));
+await using var stream7 = new MemoryStream(encoded7);
+var field7 = await QpackHeaderFieldDecoder.ReadLiteralWithLiteralNameAsync(stream7);
+
+Console.WriteLine($"Name:          {field7.Name}");
+Console.WriteLine($"Value:         {field7.Value}");
+Console.WriteLine($"Never indexed: {field7.NeverIndexed}");

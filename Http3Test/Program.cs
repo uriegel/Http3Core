@@ -55,3 +55,17 @@ Console.WriteLine($"SETTINGS payload: {Convert.ToHexString(payload)}");
 var decoded1 = await Http3Settings.DecodePayloadAsync(payload);
 foreach (var setting in decoded1.Values)
     Console.WriteLine($"Setting 0x{setting.Key:X} = {setting.Value}");
+
+Console.WriteLine($"Static table entries: {QpackStaticTable.Count}");
+
+var entry = QpackStaticTable.Get(17);
+Console.WriteLine($"17: {entry.Name} = {entry.Value}");
+
+entry = QpackStaticTable.Get(25);
+Console.WriteLine($"25: {entry.Name} = {entry.Value}");
+
+if (QpackStaticTable.TryGetIndex(":method", "GET", out var index))
+    Console.WriteLine($"GET index: {index}");
+
+if (QpackStaticTable.TryGetNameIndex("content-type", out index))
+    Console.WriteLine($"content-type name index: {index}");

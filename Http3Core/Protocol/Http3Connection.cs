@@ -11,6 +11,24 @@ public sealed class Http3Connection
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        // Open the server's own HTTP/3 control stream.
+        await using var controlStream = await connection.OpenOutboundStreamAsync( QuicStreamType.Unidirectional, cancellationToken);
+
+        // Identify it as an HTTP/3 control stream.
+        await QuicVariableInteger.WriteAsync(controlStream, Http3StreamType.Control, cancellationToken);
+
+        // Send the initial SETTINGS frame.
+        var settings = new Http3Settings();
+
+        settings.Set(Http3Settings.QpackMaxTableCapacity, 4096);
+        settings.Set(Http3Settings.MaxFieldSectionSize, 65536);
+        settings.Set(Http3Settings.QpackBlockedStreams, 10);
+        settings.Set(0x21, 0);
+        await Http3FrameWriter.WriteSettingsAsync(controlStream, settings, cancellationToken);
+
+        Console.WriteLine("Server control stream opened.");
+        Console.WriteLine("Server SETTINGS sent.");
+        
         try
         {
             while (!cancellationToken.IsCancellationRequested)

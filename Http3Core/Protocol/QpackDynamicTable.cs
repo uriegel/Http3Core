@@ -59,7 +59,32 @@ public sealed class QpackDynamicTable
 
         return entries[relativeIndex];
     }
- 
+
+    public QpackHeaderField GetRelative(int baseIndex, int relativeIndex)
+    {
+        if (baseIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(baseIndex));
+
+        if (relativeIndex < 0 || relativeIndex >= baseIndex)
+            throw new ArgumentOutOfRangeException(nameof(relativeIndex));
+
+        int absoluteIndex = baseIndex - relativeIndex - 1;
+        return GetAbsolute(absoluteIndex);
+    }
+
+    public QpackHeaderField GetPostBase(int baseIndex, int postBaseIndex)
+    {
+        if (baseIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(baseIndex));
+
+        if (postBaseIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(postBaseIndex));
+
+        int absoluteIndex = checked(baseIndex + postBaseIndex);
+
+        return GetAbsolute(absoluteIndex);
+    }
+
     void EvictOldest()
     {
         var entry = entries[^1];

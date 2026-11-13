@@ -213,3 +213,19 @@ for (int i = 0; i < table.Count; i++)
     var entry2 = table.GetRelative(i);
     Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
 }
+
+table = new QpackDynamicTable(4096);
+table.SetCapacity(4096);
+
+table.Insert("a", "1"); // absolute 0
+table.Insert("b", "2"); // absolute 1
+table.Insert("c", "3"); // absolute 2
+table.Insert("d", "4"); // absolute 3
+table.Insert("e", "5"); // absolute 4
+
+int baseIndex = 5;
+
+Console.WriteLine(table.GetRelative(baseIndex, 0).Name);
+Console.WriteLine(table.GetRelative(baseIndex, 1).Name);
+Console.WriteLine(table.GetRelative(baseIndex, 2).Name);
+//Console.WriteLine(table.GetPostBase(baseIndex, 0).Name);

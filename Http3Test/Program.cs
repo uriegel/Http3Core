@@ -99,3 +99,20 @@ Console.WriteLine(Convert.ToHexString(stringEncoded));
 using var memStream = new MemoryStream(stringEncoded);
 var stringDecoded = await QpackString.ReadAsync(memStream);
 Console.WriteLine(stringDecoded);
+
+var input = System.Text.Encoding.ASCII.GetBytes("www.example.com");
+var huffEncoded = QpackHuffman.Encode(input);
+Console.WriteLine();
+Console.WriteLine(Convert.ToHexString(huffEncoded));
+Console.WriteLine();
+Console.WriteLine(QpackHuffman.TreeIsBuilt);
+
+var encoded2 = Convert.FromHexString("F1E3C2E5F23A6BA0AB90F4FF");
+var decoded2 = QpackHuffman.Decode(encoded2);
+Console.WriteLine(System.Text.Encoding.ASCII.GetString(decoded2));
+
+var original1 = System.Text.Encoding.UTF8.GetBytes("Hello HTTP/3!");
+var compressed = QpackHuffman.Encode(original1);
+var restored = QpackHuffman.Decode(compressed);
+
+Console.WriteLine(original1.SequenceEqual(restored));

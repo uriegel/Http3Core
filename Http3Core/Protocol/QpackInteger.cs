@@ -62,6 +62,36 @@ public static class QpackInteger
         }
     }
 
+    public static async ValueTask<ulong> ReadAsync(Stream stream, int prefixBits, byte firstByte, CancellationToken cancellationToken = default)
+    {
+        ValidatePrefixBits(prefixBits);
+
+        ulong prefixMax = (1UL << prefixBits) - 1;
+        ulong value = (ulong)(firstByte & prefixMax);
+        if (value < prefixMax)
+            return value;
+
+        int shift = 0;
+        var buffer = new byte[1];
+
+        while (true)
+        {
+            await stream.ReadExactlyAsync(buffer, cancellationToken);
+
+            byte current = buffer[0];
+            ulong part = (ulong)(current & 0x7F);
+
+            if (shift >= 63 || part > (ulong.MaxValue - value) >> shift)
+                throw new InvalidDataException("QPACK integer overflow.");
+
+            value += part << shift;
+            if ((current & 0x80) == 0)
+                return value;
+
+            shift += 7;
+        }
+    }    
+
     static void ValidatePrefixBits(int prefixBits)
     {
         if (prefixBits is < 1 or > 8)

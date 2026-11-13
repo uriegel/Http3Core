@@ -91,3 +91,11 @@ foreach (var value in intValues)
 }
 
 Console.WriteLine("All QPACK integer tests passed.");
+
+var original = "content-type";
+var stringEncoded = QpackString.Encode(original);
+Console.WriteLine(Convert.ToHexString(stringEncoded));
+
+using var memStream = new MemoryStream(stringEncoded);
+var stringDecoded = await QpackString.ReadAsync(memStream);
+Console.WriteLine(stringDecoded);

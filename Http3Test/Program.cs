@@ -174,3 +174,43 @@ var field7 = await QpackHeaderFieldDecoder.ReadLiteralWithLiteralNameAsync(strea
 Console.WriteLine($"Name:          {field7.Name}");
 Console.WriteLine($"Value:         {field7.Value}");
 Console.WriteLine($"Never indexed: {field7.NeverIndexed}");
+
+Console.WriteLine();
+
+var table = new QpackDynamicTable
+{
+    MaxSize = 200
+};
+
+table.Insert("content-type", "application/json");
+table.Insert(":method", "GET");
+table.Insert("x-custom", "hello");
+
+Console.WriteLine($"Count:       {table.Count}");
+Console.WriteLine($"InsertCount: {table.InsertCount}");
+Console.WriteLine($"CurrentSize: {table.CurrentSize}");
+
+for (int i = 0; i < table.Count; i++)
+{
+    var entry2 = table.Get(i);
+    Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
+}
+
+table = new QpackDynamicTable
+{
+    MaxSize = 100
+};
+table.Insert("content-type", "application/json");
+table.Insert(":method", "GET");
+table.Insert("x-custom", "hello");
+table.Insert("x-test", "1234567890");
+
+Console.WriteLine($"Count:       {table.Count}");
+Console.WriteLine($"InsertCount: {table.InsertCount}");
+Console.WriteLine($"CurrentSize: {table.CurrentSize}");
+
+for (int i = 0; i < table.Count; i++)
+{
+    var entry2 = table.Get(i);
+    Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
+}

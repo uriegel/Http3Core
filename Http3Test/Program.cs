@@ -189,11 +189,19 @@ Console.WriteLine($"InsertCount: {table.InsertCount}");
 Console.WriteLine($"CurrentSize: {table.CurrentSize}");
 Console.WriteLine($"Capacity:    {table.Capacity}");
 
-for (int i = 0; i < table.Count; i++)
-{
-    var entry2 = table.Get(i);
-    Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
-}
+Console.WriteLine(table.GetAbsolute(0).Name);
+Console.WriteLine(table.GetAbsolute(1).Name);
+Console.WriteLine(table.GetAbsolute(2).Name);
+
+Console.WriteLine(table.GetRelative(0).Name);
+Console.WriteLine(table.GetRelative(1).Name);
+Console.WriteLine(table.GetRelative(2).Name);
+
+// for (int i = 0; i < table.Count; i++)
+// {
+//     var entry2 = table.Get(i);
+//     Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
+// }
 
 Console.WriteLine();
 
@@ -202,6 +210,6 @@ Console.WriteLine($"Count:       {table.Count}");
 Console.WriteLine($"CurrentSize: {table.CurrentSize}");
 for (int i = 0; i < table.Count; i++)
 {
-    var entry2 = table.Get(i);
+    var entry2 = table.GetRelative(i);
     Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
 }

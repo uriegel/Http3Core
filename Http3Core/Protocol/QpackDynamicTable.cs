@@ -7,7 +7,7 @@ public sealed class QpackDynamicTable
     public int CurrentSize { get; private set; }
     public int MaximumCapacity { get; }
     public int Capacity { get; private set; }
-
+    
     public QpackDynamicTable(int maximumCapacity)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(maximumCapacity);
@@ -40,14 +40,26 @@ public sealed class QpackDynamicTable
         InsertCount++;
     }
 
-    public QpackHeaderField Get(int relativeIndex)
+    public QpackHeaderField GetAbsolute(int absoluteIndex)
+    {
+        if (absoluteIndex < 0 || absoluteIndex >= InsertCount)
+            throw new ArgumentOutOfRangeException(nameof(absoluteIndex));
+
+        int relativeIndex = InsertCount - 1 - absoluteIndex;
+        if (relativeIndex >= entries.Count)
+            throw new InvalidOperationException("The requested dynamic table entry has been evicted.");
+
+        return entries[relativeIndex];
+    }
+
+    public QpackHeaderField GetRelative(int relativeIndex)
     {
         if (relativeIndex < 0 || relativeIndex >= entries.Count)
             throw new ArgumentOutOfRangeException(nameof(relativeIndex));
 
         return entries[relativeIndex];
     }
-
+ 
     void EvictOldest()
     {
         var entry = entries[^1];

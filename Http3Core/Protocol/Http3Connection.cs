@@ -6,13 +6,13 @@ namespace Http3Core.Protocol;
 public sealed class Http3Connection
 {
     public Http3Settings? PeerSettings { get; private set; }
-    
+
     public Http3Connection(QuicConnection connection) => this.connection = connection;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         // Open the server's own HTTP/3 control stream.
-        await using var controlStream = await connection.OpenOutboundStreamAsync( QuicStreamType.Unidirectional, cancellationToken);
+        await using var controlStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
 
         // Identify it as an HTTP/3 control stream.
         await QuicVariableInteger.WriteAsync(controlStream, Http3StreamType.Control, cancellationToken);
@@ -28,7 +28,9 @@ public sealed class Http3Connection
 
         Console.WriteLine("Server control stream opened.");
         Console.WriteLine("Server SETTINGS sent.");
-        
+
+        await OpenQpackStreamsAsync(cancellationToken);
+
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -47,7 +49,7 @@ public sealed class Http3Connection
 
                 var task = HandleStreamAsync(stream, cancellationToken);
                 activeStreams[stream.Id] = task;
-                _ = RemoveCompletedStreamAsync(stream.Id, task);                
+                _ = RemoveCompletedStreamAsync(stream.Id, task);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -59,7 +61,7 @@ public sealed class Http3Connection
             Console.WriteLine($"Waiting for {activeStreams.Count} active stream handlers...");
             await Task.WhenAll([.. activeStreams.Values]);
             Console.WriteLine("All stream handlers finished.");
-        }        
+        }
     }
 
     async Task HandleStreamAsync(QuicStream stream, CancellationToken cancellationToken)
@@ -91,11 +93,11 @@ public sealed class Http3Connection
                         break;
 
                     case Http3StreamType.QpackEncoder:
-                        Console.WriteLine("QPACK encoder stream received.");
+                        await HandleQpackStreamAsync(stream, "encoder", cancellationToken);
                         break;
 
                     case Http3StreamType.QpackDecoder:
-                        Console.WriteLine("QPACK decoder stream received.");
+                        await HandleQpackStreamAsync(stream, "decoder", cancellationToken);
                         break;
 
                     default:
@@ -111,7 +113,7 @@ public sealed class Http3Connection
             catch (Exception ex)
             {
                 Console.WriteLine($"Stream {stream.Id} failed: {ex.Message}");
-            }            
+            }
         }
     }
 
@@ -153,9 +155,33 @@ public sealed class Http3Connection
         {
             activeStreams.TryRemove(streamId, out _);
         }
-    }    
+    }
 
+    async Task OpenQpackStreamsAsync(CancellationToken cancellationToken)
+    {
+        // QPACK encoder stream
+        qpackEncoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
+        await QuicVariableInteger.WriteAsync(qpackEncoderStream, Http3StreamType.QpackEncoder, cancellationToken);
+
+        // QPACK decoder stream
+        qpackDecoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
+
+        await QuicVariableInteger.WriteAsync(qpackDecoderStream, Http3StreamType.QpackDecoder, cancellationToken);
+
+        Console.WriteLine("QPACK encoder and decoder streams opened.");
+    }
+
+    async Task HandleQpackStreamAsync(QuicStream stream, string name, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"QPACK {name} stream received: {stream.Id}");
+
+        // Keep the critical stream open until the connection is cancelled.
+        await Task.Delay(Timeout.Infinite, cancellationToken);
+    }
+    
     readonly QuicConnection connection;
     readonly ConcurrentDictionary<long, Task> activeStreams = [];
+    QuicStream? qpackEncoderStream;
+    QuicStream? qpackDecoderStream;
     int controlStreamReceived;
 }

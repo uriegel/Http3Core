@@ -69,3 +69,25 @@ if (QpackStaticTable.TryGetIndex(":method", "GET", out var index))
 
 if (QpackStaticTable.TryGetNameIndex("content-type", out index))
     Console.WriteLine($"content-type name index: {index}");
+
+var intValues = new ulong[]
+{
+    0, 10, 30, 31, 32, 1337, 16384, 1000000
+};
+
+foreach (var value in intValues)
+{
+    var encoded = QpackInteger.Encode(value, 5);
+    Console.WriteLine($"{value,8}: {Convert.ToHexString(encoded)}");
+}    
+
+foreach (var value in intValues)
+{
+    var encoded = QpackInteger.Encode(value, 5);
+    using var stream = new MemoryStream(encoded);
+    var decoded = await QpackInteger.ReadAsync(stream, 5);
+    if (decoded != value)
+        throw new Exception($"Mismatch: {value} != {decoded}");
+}
+
+Console.WriteLine("All QPACK integer tests passed.");

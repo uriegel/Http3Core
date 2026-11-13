@@ -145,3 +145,21 @@ Console.WriteLine($"{decoded3.Name}: {decoded3.Value}");
 
 var encoded4 = QpackHeaderFieldEncoder.EncodeIndexedStatic(98);
 Console.WriteLine(Convert.ToHexString(encoded4));
+
+Console.WriteLine();
+
+int nameIndex = 44;
+var encoded5 = QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStatic(nameIndex, "application/json");
+Console.WriteLine(Convert.ToHexString(encoded5));
+encoded5 = QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStatic(nameIndex, "application/json", true);
+Console.WriteLine(Convert.ToHexString(encoded5));
+
+Console.WriteLine();
+
+var encoded6 = QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStatic(44, "application/json", neverIndexed: true);
+await using var stream6 = new MemoryStream(encoded6);
+var field = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceAsync(stream6);
+
+Console.WriteLine($"Name:          {field.Name}");
+Console.WriteLine($"Value:         {field.Value}");
+Console.WriteLine($"Never indexed: {field.NeverIndexed}");

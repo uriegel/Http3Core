@@ -13,4 +13,27 @@ public static class QpackHeaderFieldEncoder
 
         return result;
     }
+
+    public static byte[] EncodeLiteralWithNameReferenceStatic(int nameIndex, string value, bool neverIndexed = false)
+    {
+        // Validate the static table index.
+        QpackStaticTable.Get(nameIndex);
+
+        // Name reference uses a 4-bit prefix.
+        var result = QpackInteger.Encode((ulong)nameIndex, 4);
+
+        // 01 N T NameIndex
+        // 01 = Literal Field Line With Name Reference
+        // N  = Never Indexed
+        // T  = Static Table
+        result[0] |= (byte)(
+            0x40 |
+            0x10 |
+            (neverIndexed ? 0x20 : 0x00));
+
+        // Append the literal value.
+        var encodedValue = QpackString.Encode(value);
+
+        return [.. result, .. encodedValue];
+    }   
 }

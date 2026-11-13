@@ -177,10 +177,8 @@ Console.WriteLine($"Never indexed: {field7.NeverIndexed}");
 
 Console.WriteLine();
 
-var table = new QpackDynamicTable
-{
-    MaxSize = 200
-};
+var table = new QpackDynamicTable(4096);
+table.SetCapacity(200);
 
 table.Insert("content-type", "application/json");
 table.Insert(":method", "GET");
@@ -189,6 +187,7 @@ table.Insert("x-custom", "hello");
 Console.WriteLine($"Count:       {table.Count}");
 Console.WriteLine($"InsertCount: {table.InsertCount}");
 Console.WriteLine($"CurrentSize: {table.CurrentSize}");
+Console.WriteLine($"Capacity:    {table.Capacity}");
 
 for (int i = 0; i < table.Count; i++)
 {
@@ -196,19 +195,11 @@ for (int i = 0; i < table.Count; i++)
     Console.WriteLine($"{i}: {entry2.Name}: {entry2.Value}");
 }
 
-table = new QpackDynamicTable
-{
-    MaxSize = 100
-};
-table.Insert("content-type", "application/json");
-table.Insert(":method", "GET");
-table.Insert("x-custom", "hello");
-table.Insert("x-test", "1234567890");
+Console.WriteLine();
 
+table.SetCapacity(100);
 Console.WriteLine($"Count:       {table.Count}");
-Console.WriteLine($"InsertCount: {table.InsertCount}");
 Console.WriteLine($"CurrentSize: {table.CurrentSize}");
-
 for (int i = 0; i < table.Count; i++)
 {
     var entry2 = table.Get(i);

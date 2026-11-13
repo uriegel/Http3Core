@@ -5,15 +5,33 @@ public sealed class QpackDynamicTable
     public int Count => entries.Count;
     public int InsertCount { get; private set; }
     public int CurrentSize { get; private set; }
-    public int MaxSize { get; set; } = 4096;
+    public int MaximumCapacity { get; }
+    public int Capacity { get; private set; }
+
+    public QpackDynamicTable(int maximumCapacity)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumCapacity);
+        MaximumCapacity = maximumCapacity;
+    }
+
+    public void SetCapacity(int capacity)
+    {
+        if (capacity < 0 || capacity > MaximumCapacity)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+
+        Capacity = capacity;
+        while (CurrentSize > Capacity)
+            EvictOldest();
+    }
 
     public void Insert(string name, string value)
     {
         int size = GetEntrySize(name, value);
-        if (size > MaxSize)
-            throw new InvalidOperationException("Entry is larger than the maximum dynamic table size.");
 
-        while (CurrentSize + size > MaxSize)
+        if (size > Capacity)
+            throw new InvalidOperationException("Entry is larger than the dynamic table capacity.");
+
+        while (CurrentSize + size > Capacity)
             EvictOldest();
 
         entries.Insert(0, new QpackHeaderField(name, value));
@@ -22,12 +40,12 @@ public sealed class QpackDynamicTable
         InsertCount++;
     }
 
-    public QpackHeaderField Get(int absoluteIndex)
+    public QpackHeaderField Get(int relativeIndex)
     {
-        if (absoluteIndex < 0 || absoluteIndex >= entries.Count)
-            throw new ArgumentOutOfRangeException(nameof(absoluteIndex));
+        if (relativeIndex < 0 || relativeIndex >= entries.Count)
+            throw new ArgumentOutOfRangeException(nameof(relativeIndex));
 
-        return entries[absoluteIndex];
+        return entries[relativeIndex];
     }
 
     void EvictOldest()
@@ -40,6 +58,5 @@ public sealed class QpackDynamicTable
     static int GetEntrySize(string name, string value) =>
         System.Text.Encoding.UTF8.GetByteCount(name) +
         System.Text.Encoding.UTF8.GetByteCount(value) + 32;
-
     readonly List<QpackHeaderField> entries = [];
 }

@@ -134,3 +134,14 @@ foreach (var value in values2)
     var decoded = await QpackString.ReadAsync(stream);
     Console.WriteLine($"{value == decoded}: {value} ({Convert.ToHexString(encoded)})");
 }
+
+Console.WriteLine();
+
+var encoded3 = QpackHeaderFieldEncoder.EncodeIndexedStatic(17);
+Console.WriteLine(Convert.ToHexString(encoded3));
+using var stream3 = new MemoryStream(encoded3);
+var decoded3 = await QpackHeaderFieldDecoder.ReadIndexedStaticAsync(stream3);
+Console.WriteLine($"{decoded3.Name}: {decoded3.Value}");
+
+var encoded4 = QpackHeaderFieldEncoder.EncodeIndexedStatic(98);
+Console.WriteLine(Convert.ToHexString(encoded4));

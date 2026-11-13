@@ -1,18 +1,24 @@
+using System.Text;
+
 namespace Http3Core.Protocol;
 
 public static class QpackString
 {
     public static byte[] Encode(string value)
     {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        var bytes = Encoding.UTF8.GetBytes(value);
+        var huffman = QpackHuffman.Encode(bytes);
+        bool useHuffman = huffman.Length < bytes.Length;
+        var data = useHuffman ? huffman : bytes;
 
         using var stream = new MemoryStream();
+        var length = QpackInteger.Encode((ulong)data.Length, 7);
+        if (useHuffman)
+            length[0] |= 0x80;
 
-        // H = 0: no Huffman encoding.
-        // The remaining 7 bits contain the string length.
-        var length = QpackInteger.Encode((ulong)bytes.Length, 7);
         stream.Write(length);
-        stream.Write(bytes);
+        stream.Write(data);
+
         return stream.ToArray();
     }
 
@@ -24,23 +30,23 @@ public static class QpackString
 
     public static async ValueTask<string> ReadAsync(Stream stream, CancellationToken cancellationToken = default)
     {
-        // The high bit is the Huffman flag.
         var first = new byte[1];
         await stream.ReadExactlyAsync(first, cancellationToken);
 
         bool huffman = (first[0] & 0x80) != 0;
-        if (huffman)
-            throw new NotSupportedException("QPACK Huffman encoding is not implemented yet.");
-
         ulong length = await QpackInteger.ReadAsync(stream, 7, first[0], cancellationToken);
         if (length > int.MaxValue)
             throw new InvalidDataException("QPACK string is too long.");
 
         var bytes = new byte[(int)length];
         await stream.ReadExactlyAsync(bytes, cancellationToken);
-        return System.Text.Encoding.UTF8.GetString(bytes);    
-    }
 
+        if (huffman)
+            bytes = QpackHuffman.Decode(bytes);
+
+        return Encoding.UTF8.GetString(bytes);
+    }
+    
     private sealed class PrefixStream(byte[] prefix) : MemoryStream(prefix)
     {
     }

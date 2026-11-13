@@ -116,3 +116,21 @@ var compressed = QpackHuffman.Encode(original1);
 var restored = QpackHuffman.Decode(compressed);
 
 Console.WriteLine(original1.SequenceEqual(restored));
+Console.WriteLine();
+
+var values2 = new[]
+{
+    "www.example.com",
+    "content-type",
+    "Hello HTTP/3!",
+    "a",
+    ""
+};
+
+foreach (var value in values2)
+{
+    var encoded = QpackString.Encode(value);
+    using var stream = new MemoryStream(encoded);
+    var decoded = await QpackString.ReadAsync(stream);
+    Console.WriteLine($"{value == decoded}: {value} ({Convert.ToHexString(encoded)})");
+}

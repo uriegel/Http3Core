@@ -104,10 +104,14 @@ public sealed class Http3Connection
                         break;
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Normal connection shutdown.
+            }
             catch (Exception ex)
             {
                 Console.WriteLine($"Stream {stream.Id} failed: {ex.Message}");
-            }
+            }            
         }
     }
 

@@ -244,3 +244,8 @@ ulong requiredInsertCount = QpackFieldSectionPrefixDecoder.DecodeRequiredInsertC
 Console.WriteLine(requiredInsertCount);
 
 Console.WriteLine();
+
+Console.WriteLine(QpackFieldSectionPrefixDecoder.DecodeBase(requiredInsertCount: 10, sign: false, deltaBase: 3));
+Console.WriteLine(QpackFieldSectionPrefixDecoder.DecodeBase(requiredInsertCount: 10, sign: true, deltaBase: 3));
+
+Console.WriteLine();

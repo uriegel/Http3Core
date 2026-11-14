@@ -21,7 +21,7 @@ public static class QpackFieldSectionPrefixDecoder
 
         ulong maxEntries = maximumTableCapacity / 32;
         if (maxEntries == 0)
-        throw new InvalidDataException("Invalid maximum dynamic table capacity.");
+            throw new InvalidDataException("Invalid maximum dynamic table capacity.");
 
         ulong fullRange = 2 * maxEntries;
         if (encodedRequiredInsertCount > fullRange)
@@ -31,11 +31,23 @@ public static class QpackFieldSectionPrefixDecoder
         ulong maxWrapped = (maxValue / fullRange) * fullRange;
         ulong requiredInsertCount = maxWrapped + encodedRequiredInsertCount - 1;
 
-    if (requiredInsertCount > maxValue)
-        requiredInsertCount -= fullRange;
-    if (requiredInsertCount == 0)
-        throw new InvalidDataException("Invalid Required Insert Count.");
+        if (requiredInsertCount > maxValue)
+            requiredInsertCount -= fullRange;
+        if (requiredInsertCount == 0)
+            throw new InvalidDataException("Invalid Required Insert Count.");
 
-    return requiredInsertCount;
-}   
+        return requiredInsertCount;
+    }   
+    
+    public static ulong DecodeBase(ulong requiredInsertCount, bool sign, ulong deltaBase)
+    {
+        if (sign)
+        {
+            if (deltaBase >= requiredInsertCount)
+                throw new InvalidDataException("Invalid negative Delta Base.");
+            return requiredInsertCount - deltaBase - 1;
+        }
+
+        return checked(requiredInsertCount + deltaBase);
+    }    
 }

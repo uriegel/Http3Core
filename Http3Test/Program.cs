@@ -369,3 +369,23 @@ for (int i = 0; i < table19.Count; i++)
 }
 
 Console.WriteLine();
+
+var encoded20 = QpackHeaderFieldEncoder.EncodeIndexedDynamic(0);
+Console.WriteLine(Convert.ToHexString(encoded20));
+
+Console.WriteLine();
+
+var table21 = new QpackDynamicTable(4096);
+table21.SetCapacity(4096);
+table21.Insert("content-type", "application/json");
+table21.Insert("x-custom-header", "hello");
+int baseIndex21 = table21.InsertCount;
+
+// Encode relative index 0 (newest entry)
+byte[] encoded21 = QpackHeaderFieldEncoder.EncodeIndexedDynamic(0);
+
+using var stream21 = new MemoryStream(encoded21);
+var field21 = await QpackHeaderFieldDecoder.ReadIndexedDynamicAsync(stream21, table21, baseIndex21);
+Console.WriteLine($"{field21.Name}: {field21.Value}");
+
+Console.WriteLine();

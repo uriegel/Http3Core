@@ -47,8 +47,8 @@ public static class QpackHeaderFieldDecoder
         string value = await QpackString.ReadAsync(stream, cancellationToken);
 
         return new QpackHeaderField(name, value, neverIndexed);
-    }    
-    
+    }
+
     public static async ValueTask<QpackHeaderField> ReadLiteralWithLiteralNameAsync(Stream stream, CancellationToken cancellationToken = default)
     {
         var first = new byte[1];
@@ -75,5 +75,22 @@ public static class QpackHeaderFieldDecoder
         string value = await QpackString.ReadAsync(stream, cancellationToken);
 
         return new QpackHeaderField(name, value, neverIndexed);
-    }    
+    }
+
+    public static async ValueTask<QpackHeaderField> ReadIndexedDynamicAsync(Stream stream, QpackDynamicTable table, int baseIndex, CancellationToken cancellationToken = default)
+    {
+        int firstByte = stream.ReadByte();
+        if (firstByte < 0)
+            throw new EndOfStreamException();
+
+        if ((firstByte & 0xC0) != 0x80)
+            throw new InvalidDataException("Expected Indexed Field Line with Dynamic Table Reference.");
+
+        ulong relativeIndex = await QpackInteger.ReadAsync(stream, 6, (byte)firstByte, cancellationToken);
+        if (relativeIndex > int.MaxValue)
+            throw new InvalidDataException("Invalid dynamic table index.");
+
+        var entry = table.GetRelative(baseIndex, (int)relativeIndex);
+        return new QpackHeaderField(entry.Name, entry.Value);
+    }
 }

@@ -35,7 +35,7 @@ public static class QpackHeaderFieldEncoder
         var encodedValue = QpackString.Encode(value);
 
         return [.. result, .. encodedValue];
-    }   
+    }
 
     public static byte[] EncodeLiteralWithLiteralName(string name, string value, bool neverIndexed = false)
     {
@@ -55,5 +55,15 @@ public static class QpackHeaderFieldEncoder
 
         var encodedValue = QpackString.Encode(value);
         return [.. nameLength, .. nameBytes, .. encodedValue];
+    }
+    
+    public static byte[] EncodeIndexedDynamic(int relativeIndex)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(relativeIndex);
+
+        var result = QpackInteger.Encode((ulong)relativeIndex, 6);
+        result[0] |= 0x80; // 1 T=0
+
+        return result;
     }
 }

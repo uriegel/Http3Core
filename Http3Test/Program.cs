@@ -343,3 +343,29 @@ for (int i = 0; i < table18.Count; i++)
 }
 
 Console.WriteLine();
+
+var instructions19 = new List<byte>();
+
+// Set dynamic table capacity to 4096
+instructions19.AddRange(QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096));
+// Insert: content-type = application/json
+instructions19.AddRange(QpackEncoderStreamInstruction.EncodeInsertWithNameReferenceStatic(44, "application/json"));
+// Insert: x-custom-header = hello
+instructions19.AddRange(QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom-header", "hello"));
+// Duplicate the newest entry (relative index 0)
+instructions19.AddRange(QpackEncoderStreamInstruction.EncodeDuplicate(0));
+using var stream19 = new MemoryStream(instructions19.ToArray());
+var table19 = new QpackDynamicTable(4096);
+while (stream19.Position < stream19.Length)
+    await QpackEncoderStreamInstruction.ReadAsync(stream19, table19);
+
+Console.WriteLine($"InsertCount: {table19.InsertCount}");
+Console.WriteLine($"Count: {table19.Count}");
+
+for (int i = 0; i < table19.Count; i++)
+{
+    var entry19 = table19.GetRelative(i);
+    Console.WriteLine($"{i}: {entry19.Name}: {entry19.Value}");
+}
+
+Console.WriteLine();

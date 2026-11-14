@@ -283,3 +283,14 @@ var encoded13 = QpackEncoderStreamInstruction.EncodeInsertWithNameReferenceStati
 Console.WriteLine(Convert.ToHexString(encoded13));
 
 Console.WriteLine();
+
+var table14 = new QpackDynamicTable(4096);
+table14.SetCapacity(4096);
+var encoded14 = QpackEncoderStreamInstruction.EncodeInsertWithNameReferenceStatic(44, "application/json");
+await using var stream14 = new MemoryStream(encoded14);
+await QpackEncoderStreamInstruction.ReadInsertWithNameReferenceStaticAsync(stream14, table14);
+Console.WriteLine($"Count: {table14.Count}");
+Console.WriteLine($"Name:  {table14.GetAbsolute(0).Name}");
+Console.WriteLine($"Value: {table14.GetAbsolute(0).Value}");
+
+Console.WriteLine();

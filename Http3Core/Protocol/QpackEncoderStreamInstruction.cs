@@ -28,7 +28,7 @@ public static class QpackEncoderStreamInstruction
             throw new InvalidDataException("Dynamic table capacity is too large.");
 
         table.SetCapacity((int)capacity);
-    }    
+    }
 
     public static byte[] EncodeInsertWithNameReferenceStatic(int nameIndex, string value)
     {
@@ -46,5 +46,28 @@ public static class QpackEncoderStreamInstruction
         var encodedValue = QpackString.Encode(value);
 
         return [.. result, .. encodedValue];
-    }    
+    }
+
+    public static async ValueTask ReadInsertWithNameReferenceStaticAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
+    {
+        var first = new byte[1];
+        await stream.ReadExactlyAsync(first, cancellationToken);
+
+        // 1 T NameIndex
+        if ((first[0] & 0x80) == 0)
+            throw new InvalidDataException("Expected Insert With Name Reference instruction.");
+
+        bool isStatic = (first[0] & 0x40) != 0;
+        if (!isStatic)
+            throw new NotSupportedException("Dynamic table name references are not supported yet.");
+
+        ulong nameIndex = await QpackInteger.ReadAsync(stream, 6, first[0], cancellationToken);
+        if (nameIndex >= (ulong)QpackStaticTable.Count)
+            throw new InvalidDataException($"Invalid QPACK static table index: {nameIndex}");
+
+        string name = QpackStaticTable.Get((int)nameIndex).Name;
+        string value = await QpackString.ReadAsync(stream, cancellationToken);
+
+        table.Insert(name, value);
+    }
 }

@@ -70,4 +70,22 @@ public static class QpackEncoderStreamInstruction
 
         table.Insert(name, value);
     }
+
+    public static byte[] EncodeInsertWithoutNameReference(string name, string value)    
+    {
+        var rawName = System.Text.Encoding.UTF8.GetBytes(name);
+        var huffmanName = QpackHuffman.Encode(rawName);
+
+        bool useHuffman = huffmanName.Length < rawName.Length;
+        byte[] nameBytes = useHuffman ? huffmanName : rawName;
+
+        // Name length uses a 5-bit prefix.
+        var result = QpackInteger.Encode((ulong)nameBytes.Length, 5);
+
+        // 01 H NameLength
+        result[0] |= (byte)(0x40 |(useHuffman ? 0x20 : 0x00));
+        var encodedValue = QpackString.Encode(value);
+
+        return [.. result, .. nameBytes, .. encodedValue];
+    }    
 }

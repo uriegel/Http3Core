@@ -294,3 +294,8 @@ Console.WriteLine($"Name:  {table14.GetAbsolute(0).Name}");
 Console.WriteLine($"Value: {table14.GetAbsolute(0).Value}");
 
 Console.WriteLine();
+
+var encoded15 = QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom-header", "hello");
+Console.WriteLine(Convert.ToHexString(encoded15));
+
+Console.WriteLine();

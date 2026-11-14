@@ -263,3 +263,10 @@ var encoded10 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096
 Console.WriteLine(Convert.ToHexString(encoded10));
 
 Console.WriteLine();
+
+var encoded11 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096);
+await using var stream11 = new MemoryStream(encoded11);
+ulong capacity = await QpackEncoderStreamInstruction.ReadSetDynamicTableCapacityAsync(stream11);
+Console.WriteLine(capacity);
+
+Console.WriteLine();

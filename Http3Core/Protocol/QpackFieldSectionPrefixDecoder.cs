@@ -37,8 +37,8 @@ public static class QpackFieldSectionPrefixDecoder
             throw new InvalidDataException("Invalid Required Insert Count.");
 
         return requiredInsertCount;
-    }   
-    
+    }
+
     public static ulong DecodeBase(ulong requiredInsertCount, bool sign, ulong deltaBase)
     {
         if (sign)
@@ -50,4 +50,15 @@ public static class QpackFieldSectionPrefixDecoder
 
         return checked(requiredInsertCount + deltaBase);
     }    
+    
+    public static async ValueTask<QpackDecodedFieldSectionPrefix> ReadDecodedAsync(Stream stream, ulong totalNumberOfInserts, ulong maximumTableCapacity,
+        CancellationToken cancellationToken = default)
+    {
+        var encoded = await ReadAsync(stream, cancellationToken);
+
+        ulong requiredInsertCount = DecodeRequiredInsertCount(encoded.EncodedRequiredInsertCount, totalNumberOfInserts, maximumTableCapacity);
+        ulong baseIndex = DecodeBase(requiredInsertCount, encoded.Sign, encoded.DeltaBase);
+
+        return new QpackDecodedFieldSectionPrefix(requiredInsertCount, baseIndex);
+}    
 }

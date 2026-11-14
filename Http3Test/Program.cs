@@ -249,3 +249,17 @@ Console.WriteLine(QpackFieldSectionPrefixDecoder.DecodeBase(requiredInsertCount:
 Console.WriteLine(QpackFieldSectionPrefixDecoder.DecodeBase(requiredInsertCount: 10, sign: true, deltaBase: 3));
 
 Console.WriteLine();
+
+var encoded9 = QpackFieldSectionPrefixEncoder.Encode(encodedRequiredInsertCount: 5,sign: false, deltaBase: 3);
+await using var stream9 = new MemoryStream(encoded9);
+var prefix9 = await QpackFieldSectionPrefixDecoder.ReadDecodedAsync(stream9, totalNumberOfInserts: 100, maximumTableCapacity: 4096);
+
+Console.WriteLine($"Required Insert Count: {prefix9.RequiredInsertCount}");
+Console.WriteLine($"Base:                  {prefix9.Base}");
+
+Console.WriteLine();
+
+var encoded10 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096);
+Console.WriteLine(Convert.ToHexString(encoded10));
+
+Console.WriteLine();

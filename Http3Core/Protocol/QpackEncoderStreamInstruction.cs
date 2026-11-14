@@ -87,8 +87,8 @@ public static class QpackEncoderStreamInstruction
         var encodedValue = QpackString.Encode(value);
 
         return [.. result, .. nameBytes, .. encodedValue];
-    }    
-    
+    }
+
     public static async ValueTask ReadInsertWithoutNameReferenceAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
     {
         var first = new byte[1];
@@ -111,5 +111,33 @@ public static class QpackEncoderStreamInstruction
         string name = System.Text.Encoding.UTF8.GetString(nameBytes);
         string value = await QpackString.ReadAsync(stream, cancellationToken);
         table.Insert(name, value);
+    }
+
+    public static byte[] EncodeDuplicate(int relativeIndex)
+    {
+        if (relativeIndex < 0)
+            throw new ArgumentOutOfRangeException(nameof(relativeIndex));
+
+        var result = QpackInteger.Encode((ulong)relativeIndex, 5);
+
+        // 000xxxxx
+        return result;
+    }    
+    
+    public static async ValueTask ReadDuplicateAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
+    {
+        var first = new byte[1];
+        await stream.ReadExactlyAsync(first, cancellationToken);
+
+        // 000xxxxx
+        if ((first[0] & 0xE0) != 0x00)
+            throw new InvalidDataException("Expected Duplicate instruction.");
+
+        ulong relativeIndex = await QpackInteger.ReadAsync(stream, 5, first[0], cancellationToken);
+        if (relativeIndex > int.MaxValue)
+            throw new InvalidDataException("Invalid dynamic table index.");
+
+        var entry = table.GetRelative(table.InsertCount, (int)relativeIndex);
+        table.Insert(entry.Name, entry.Value);
     }    
 }

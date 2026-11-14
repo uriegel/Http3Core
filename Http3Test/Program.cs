@@ -310,3 +310,16 @@ Console.WriteLine($"Name:  {field16.Name}");
 Console.WriteLine($"Value: {field16.Value}");
 
 Console.WriteLine();
+
+var table17 = new QpackDynamicTable(4096);
+table17.SetCapacity(4096);
+table17.Insert("content-type", "application/json");
+table17.Insert("x-custom", "hello");
+var encoded17 = QpackEncoderStreamInstruction.EncodeDuplicate(0);
+await using var stream17 = new MemoryStream(encoded17);
+await QpackEncoderStreamInstruction.ReadDuplicateAsync(stream17, table17);
+Console.WriteLine($"InsertCount: {table17.InsertCount}");
+var entry17 = table17.GetAbsolute(2);
+Console.WriteLine($"{entry17.Name}: {entry17.Value}");
+
+Console.WriteLine();

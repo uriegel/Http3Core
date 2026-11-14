@@ -239,3 +239,8 @@ var prefix = await QpackFieldSectionPrefixDecoder.ReadAsync(stream8);
 Console.WriteLine($"Required Insert Count: {prefix.EncodedRequiredInsertCount}");
 Console.WriteLine($"Sign:                  {prefix.Sign}");
 Console.WriteLine($"Delta Base:            {prefix.DeltaBase}");
+ulong requiredInsertCount = QpackFieldSectionPrefixDecoder.DecodeRequiredInsertCount(
+    encodedRequiredInsertCount: 5, totalNumberOfInserts: 100, maximumTableCapacity: 4096);
+Console.WriteLine(requiredInsertCount);
+
+Console.WriteLine();

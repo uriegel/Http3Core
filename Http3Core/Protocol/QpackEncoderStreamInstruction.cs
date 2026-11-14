@@ -29,4 +29,22 @@ public static class QpackEncoderStreamInstruction
 
         table.SetCapacity((int)capacity);
     }    
+
+    public static byte[] EncodeInsertWithNameReferenceStatic(int nameIndex, string value)
+    {
+        // Validate the static table index.
+        QpackStaticTable.Get(nameIndex);
+
+        // Name index uses a 6-bit prefix.
+        var result = QpackInteger.Encode((ulong)nameIndex, 6);
+
+        // 1 T NameIndex
+        // T = 1 means static table.
+        result[0] |= 0xC0;
+
+        // Append the encoded value.
+        var encodedValue = QpackString.Encode(value);
+
+        return [.. result, .. encodedValue];
+    }    
 }

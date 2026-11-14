@@ -278,3 +278,8 @@ await QpackEncoderStreamInstruction.ReadAndApplySetDynamicTableCapacityAsync(str
 Console.WriteLine($"Capacity: {table12.Capacity}");
 
 Console.WriteLine();
+
+var encoded13 = QpackEncoderStreamInstruction.EncodeInsertWithNameReferenceStatic(44,"application/json");
+Console.WriteLine(Convert.ToHexString(encoded13));
+
+Console.WriteLine();

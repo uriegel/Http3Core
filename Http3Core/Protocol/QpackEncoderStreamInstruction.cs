@@ -50,25 +50,9 @@ public static class QpackEncoderStreamInstruction
 
     public static async ValueTask ReadInsertWithNameReferenceStaticAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
     {
-        var first = new byte[1];
-        await stream.ReadExactlyAsync(first, cancellationToken);
-
-        // 1 T NameIndex
-        if ((first[0] & 0x80) == 0)
-            throw new InvalidDataException("Expected Insert With Name Reference instruction.");
-
-        bool isStatic = (first[0] & 0x40) != 0;
-        if (!isStatic)
-            throw new NotSupportedException("Dynamic table name references are not supported yet.");
-
-        ulong nameIndex = await QpackInteger.ReadAsync(stream, 6, first[0], cancellationToken);
-        if (nameIndex >= (ulong)QpackStaticTable.Count)
-            throw new InvalidDataException($"Invalid QPACK static table index: {nameIndex}");
-
-        string name = QpackStaticTable.Get((int)nameIndex).Name;
-        string value = await QpackString.ReadAsync(stream, cancellationToken);
-
-        table.Insert(name, value);
+        var firstByte = new byte[1];
+        await stream.ReadExactlyAsync(firstByte, cancellationToken);
+        await ReadInsertWithNameReferenceStaticAsync(stream, table, firstByte[0], cancellationToken);
     }
 
     public static byte[] EncodeInsertWithoutNameReference(string name, string value)
@@ -91,26 +75,9 @@ public static class QpackEncoderStreamInstruction
 
     public static async ValueTask ReadInsertWithoutNameReferenceAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
     {
-        var first = new byte[1];
-        await stream.ReadExactlyAsync(first, cancellationToken);
-
-        // 01 H NameLength
-        if ((first[0] & 0xC0) != 0x40)
-            throw new InvalidDataException("Expected Insert Without Name Reference instruction.");
-
-        bool huffman = (first[0] & 0x20) != 0;
-        ulong nameLength = await QpackInteger.ReadAsync(stream, 5, first[0], cancellationToken);
-        if (nameLength > int.MaxValue)
-            throw new InvalidDataException("QPACK name is too long.");
-
-        var nameBytes = new byte[(int)nameLength];
-        await stream.ReadExactlyAsync(nameBytes, cancellationToken);
-        if (huffman)
-            nameBytes = QpackHuffman.Decode(nameBytes);
-
-        string name = System.Text.Encoding.UTF8.GetString(nameBytes);
-        string value = await QpackString.ReadAsync(stream, cancellationToken);
-        table.Insert(name, value);
+        var firstByte = new byte[1];
+        await stream.ReadExactlyAsync(firstByte, cancellationToken);
+        await ReadInsertWithoutNameReferenceAsync(stream, table, firstByte[0], cancellationToken);
     }
 
     public static byte[] EncodeDuplicate(int relativeIndex)
@@ -122,22 +89,82 @@ public static class QpackEncoderStreamInstruction
 
         // 000xxxxx
         return result;
-    }    
-    
+    }
+
     public static async ValueTask ReadDuplicateAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
+    {
+        var firstByte = new byte[1];
+        await stream.ReadExactlyAsync(firstByte, cancellationToken);
+        await ReadDuplicateAsync(stream, table, firstByte[0], cancellationToken);
+    }
+
+    public static async ValueTask ReadAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
     {
         var first = new byte[1];
         await stream.ReadExactlyAsync(first, cancellationToken);
 
+        byte value = first[0];
+
+        if ((value & 0x80) != 0)
+            await ReadInsertWithNameReferenceStaticAsync(stream, table, value, cancellationToken);
+        else if ((value & 0xC0) == 0x40)
+            await ReadInsertWithoutNameReferenceAsync(stream, table, value, cancellationToken);
+        else if ((value & 0xE0) == 0x20)
+        {
+            ulong capacity = await QpackInteger.ReadAsync(stream, 5, value, cancellationToken);
+            if (capacity > int.MaxValue)
+                throw new InvalidDataException("Dynamic table capacity is too large.");
+
+            table.SetCapacity((int)capacity);
+        }
+        else
+            await ReadDuplicateAsync(stream, table, value, cancellationToken);
+    }
+    static async ValueTask ReadInsertWithoutNameReferenceAsync(Stream stream, QpackDynamicTable table, byte firstByte, CancellationToken cancellationToken)
+    {
+        bool huffman = (firstByte & 0x20) != 0;
+        ulong nameLength = await QpackInteger.ReadAsync(stream, 5, firstByte, cancellationToken);
+        if (nameLength > int.MaxValue)
+            throw new InvalidDataException("QPACK name is too long.");
+
+        var nameBytes = new byte[(int)nameLength];
+        await stream.ReadExactlyAsync(nameBytes, cancellationToken);
+        if (huffman)
+            nameBytes = QpackHuffman.Decode(nameBytes);
+
+        string name = System.Text.Encoding.UTF8.GetString(nameBytes);
+        string value = await QpackString.ReadAsync(stream, cancellationToken);
+
+        table.Insert(name, value);
+    }
+
+    static async ValueTask ReadDuplicateAsync(Stream stream, QpackDynamicTable table, byte firstByte, CancellationToken cancellationToken = default)
+    {
         // 000xxxxx
-        if ((first[0] & 0xE0) != 0x00)
+        if ((firstByte & 0xE0) != 0x00)
             throw new InvalidDataException("Expected Duplicate instruction.");
 
-        ulong relativeIndex = await QpackInteger.ReadAsync(stream, 5, first[0], cancellationToken);
+        ulong relativeIndex = await QpackInteger.ReadAsync(stream, 5, firstByte, cancellationToken);
         if (relativeIndex > int.MaxValue)
             throw new InvalidDataException("Invalid dynamic table index.");
 
         var entry = table.GetRelative(table.InsertCount, (int)relativeIndex);
         table.Insert(entry.Name, entry.Value);
-    }    
+    }
+
+    static async ValueTask ReadInsertWithNameReferenceStaticAsync(Stream stream, QpackDynamicTable table, byte firstByte, CancellationToken cancellationToken = default)
+    {
+        bool isStatic = (firstByte & 0x40) != 0;
+        if (!isStatic)
+            throw new NotSupportedException("Dynamic table name references are not supported yet.");
+
+        ulong nameIndex = await QpackInteger.ReadAsync(stream, 6, firstByte, cancellationToken);
+        if (nameIndex >= (ulong)QpackStaticTable.Count)
+            throw new InvalidDataException($"Invalid QPACK static table index: {nameIndex}");
+
+        string name = QpackStaticTable.Get((int)nameIndex).Name;
+        string value = await QpackString.ReadAsync(stream, cancellationToken);
+
+        table.Insert(name, value);
+    }
 }

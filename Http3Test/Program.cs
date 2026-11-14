@@ -323,3 +323,23 @@ var entry17 = table17.GetAbsolute(2);
 Console.WriteLine($"{entry17.Name}: {entry17.Value}");
 
 Console.WriteLine();
+
+var table18 = new QpackDynamicTable(4096);
+var instructions = new List<byte>();
+instructions.AddRange(QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096));
+instructions.AddRange(QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom", "hello"));
+instructions.AddRange(QpackEncoderStreamInstruction.EncodeDuplicate(0));
+
+await using var stream18 = new MemoryStream(instructions.ToArray());
+while (stream18.Position < stream18.Length)
+    await QpackEncoderStreamInstruction.ReadAsync(stream18, table18);
+
+Console.WriteLine($"InsertCount: {table18.InsertCount}");
+
+for (int i = 0; i < table18.Count; i++)
+{
+    var entry18 = table18.GetRelative(i);
+    Console.WriteLine($"{i}: {entry18.Name}: {entry18.Value}");
+}
+
+Console.WriteLine();

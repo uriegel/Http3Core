@@ -229,3 +229,13 @@ Console.WriteLine(table.GetRelative(baseIndex, 0).Name);
 Console.WriteLine(table.GetRelative(baseIndex, 1).Name);
 Console.WriteLine(table.GetRelative(baseIndex, 2).Name);
 //Console.WriteLine(table.GetPostBase(baseIndex, 0).Name);
+
+Console.WriteLine();
+
+var encoded8 = QpackFieldSectionPrefixEncoder.Encode(encodedRequiredInsertCount: 5, sign: false, deltaBase: 3);
+Console.WriteLine(Convert.ToHexString(encoded8));
+await using var stream8 = new MemoryStream(encoded8);
+var prefix = await QpackFieldSectionPrefixDecoder.ReadAsync(stream8);
+Console.WriteLine($"Required Insert Count: {prefix.EncodedRequiredInsertCount}");
+Console.WriteLine($"Sign:                  {prefix.Sign}");
+Console.WriteLine($"Delta Base:            {prefix.DeltaBase}");

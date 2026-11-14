@@ -389,3 +389,20 @@ var field21 = await QpackHeaderFieldDecoder.ReadIndexedDynamicAsync(stream21, ta
 Console.WriteLine($"{field21.Name}: {field21.Value}");
 
 Console.WriteLine();
+
+byte[] encoded22 = QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceDynamic(0, "text/plain");
+Console.WriteLine(Convert.ToHexString(encoded22));
+
+Console.WriteLine();
+
+var table23 = new QpackDynamicTable(4096);
+table23.SetCapacity(4096);
+table23.Insert("content-type", "application/json");
+table23.Insert("x-custom-header", "hello");
+int baseIndex23 = table23.InsertCount;
+byte[] encoded23 = QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceDynamic(0, "world");
+using var stream23 = new MemoryStream(encoded23);
+var field23 = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceDynamicAsync(stream23, table23, baseIndex23);
+Console.WriteLine($"{field23.Name}: {field23.Value}");
+
+Console.WriteLine();

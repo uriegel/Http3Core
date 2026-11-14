@@ -93,4 +93,25 @@ public static class QpackHeaderFieldDecoder
         var entry = table.GetRelative(baseIndex, (int)relativeIndex);
         return new QpackHeaderField(entry.Name, entry.Value);
     }
+
+    public static async ValueTask<QpackHeaderField> ReadLiteralWithNameReferenceDynamicAsync(Stream stream, QpackDynamicTable table,
+        int baseIndex, CancellationToken cancellationToken = default)
+    {
+        int firstByte = stream.ReadByte();
+        if (firstByte < 0)
+            throw new EndOfStreamException();
+
+        if ((firstByte & 0xC0) != 0x40 || (firstByte & 0x10) != 0)
+            throw new InvalidDataException("Expected Literal Field Line With Dynamic Name Reference.");
+
+        bool neverIndexed = (firstByte & 0x20) != 0;
+        ulong relativeIndex = await QpackInteger.ReadAsync(stream, 4, (byte)firstByte, cancellationToken);
+        if (relativeIndex > int.MaxValue)
+            throw new InvalidDataException("Invalid dynamic table index.");
+
+        var entry = table.GetRelative(baseIndex, (int)relativeIndex);
+        string value = await QpackString.ReadAsync(stream, cancellationToken);
+
+        return new QpackHeaderField(entry.Name, value, neverIndexed);
+    }   
 }

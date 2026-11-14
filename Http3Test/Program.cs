@@ -270,3 +270,11 @@ ulong capacity = await QpackEncoderStreamInstruction.ReadSetDynamicTableCapacity
 Console.WriteLine(capacity);
 
 Console.WriteLine();
+
+var table12 = new QpackDynamicTable(4096);
+var encoded12 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(2048);
+await using var stream12 = new MemoryStream(encoded12);
+await QpackEncoderStreamInstruction.ReadAndApplySetDynamicTableCapacityAsync(stream12, table12);
+Console.WriteLine($"Capacity: {table12.Capacity}");
+
+Console.WriteLine();

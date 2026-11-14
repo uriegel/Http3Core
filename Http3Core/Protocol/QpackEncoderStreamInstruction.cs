@@ -19,7 +19,7 @@ public static class QpackEncoderStreamInstruction
             throw new InvalidDataException("Expected Set Dynamic Table Capacity instruction.");
 
         return await QpackInteger.ReadAsync(stream, 5, first[0], cancellationToken);
-    }    
+    }
 
     public static async ValueTask ReadAndApplySetDynamicTableCapacityAsync(Stream stream, QpackDynamicTable table, CancellationToken cancellationToken = default)
     {

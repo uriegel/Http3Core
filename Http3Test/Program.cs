@@ -299,3 +299,14 @@ var encoded15 = QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("
 Console.WriteLine(Convert.ToHexString(encoded15));
 
 Console.WriteLine();
+
+var table16 = new QpackDynamicTable(4096);
+table16.SetCapacity(4096);
+var encoded16 = QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom-header", "hello");
+await using var stream16 = new MemoryStream(encoded16);
+await QpackEncoderStreamInstruction.ReadInsertWithoutNameReferenceAsync(stream16, table16);
+var field16 = table16.GetAbsolute(0);
+Console.WriteLine($"Name:  {field16.Name}");
+Console.WriteLine($"Value: {field16.Value}");
+
+Console.WriteLine();

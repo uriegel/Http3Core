@@ -113,5 +113,46 @@ public static class QpackHeaderFieldDecoder
         string value = await QpackString.ReadAsync(stream, cancellationToken);
 
         return new QpackHeaderField(entry.Name, value, neverIndexed);
+    }
+
+    public static async ValueTask<QpackHeaderField> ReadIndexedPostBaseAsync(Stream stream, QpackDynamicTable table, int baseIndex, CancellationToken cancellationToken = default)
+    {
+        int firstByte = stream.ReadByte();
+        if (firstByte < 0)
+            throw new EndOfStreamException();
+
+        if ((firstByte & 0xF0) != 0x10)
+            throw new InvalidDataException("Expected Indexed Field Line with Post-Base Index.");
+
+        ulong postBaseIndex = await QpackInteger.ReadAsync(stream, 4, (byte)firstByte, cancellationToken);
+        if (postBaseIndex > int.MaxValue)
+            throw new InvalidDataException("Invalid post-base index.");
+
+        var entry = table.GetPostBase(baseIndex, (int)postBaseIndex);
+        return new QpackHeaderField(entry.Name, entry.Value);
+    }    
+    
+    public static async ValueTask<QpackHeaderField> ReadLiteralWithPostBaseNameReferenceAsync(Stream stream,
+        QpackDynamicTable table, int baseIndex, CancellationToken cancellationToken = default)
+    {
+        int firstByte = stream.ReadByte();
+        if (firstByte < 0)
+            throw new EndOfStreamException();
+
+        if ((firstByte & 0xF0) != 0x00)
+            throw new InvalidDataException("Expected Literal Field Line With Post-Base Name Reference.");
+
+        bool neverIndexed = (firstByte & 0x10) != 0;
+        ulong postBaseIndex = await QpackInteger.ReadAsync(stream, 3, (byte)firstByte, cancellationToken);
+        if (postBaseIndex > int.MaxValue)
+            throw new InvalidDataException("Invalid post-base index.");
+
+        var entry = table.GetPostBase(baseIndex, (int)postBaseIndex);
+        string value = await QpackString.ReadAsync(stream, cancellationToken);
+
+        return new QpackHeaderField(
+            entry.Name,
+            value,
+            neverIndexed);
     }   
 }

@@ -406,3 +406,32 @@ var field23 = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceDynamicA
 Console.WriteLine($"{field23.Name}: {field23.Value}");
 
 Console.WriteLine();
+
+var table24 = new QpackDynamicTable(4096);
+table24.SetCapacity(4096);
+table24.Insert("content-type", "application/json");
+table24.Insert("x-custom-header", "hello");
+int baseIndex24 = 1;
+byte[] encoded24 = QpackHeaderFieldEncoder.EncodeIndexedPostBase(0);
+using var stream24 = new MemoryStream(encoded24);
+var field24 = await QpackHeaderFieldDecoder.ReadIndexedPostBaseAsync(stream24, table24, baseIndex24);
+Console.WriteLine($"{field24.Name}: {field24.Value}");
+
+Console.WriteLine();
+
+var encoded25 = QpackHeaderFieldEncoder.EncodeLiteralWithPostBaseNameReference( 0, "world");
+Console.WriteLine(Convert.ToHexString(encoded25));
+
+Console.WriteLine();
+
+var table26 = new QpackDynamicTable(4096);
+table26.SetCapacity(4096);
+table26.Insert("content-type", "application/json");
+table26.Insert("x-custom-header", "hello");
+int baseIndex26 = 1;
+byte[] encoded26 = QpackHeaderFieldEncoder.EncodeLiteralWithPostBaseNameReference(0, "world");
+using var stream26 = new MemoryStream(encoded26);
+var field26 = await QpackHeaderFieldDecoder.ReadLiteralWithPostBaseNameReferenceAsync(stream26, table26, baseIndex26);
+Console.WriteLine($"{field26.Name}: {field26.Value}");
+
+Console.WriteLine();

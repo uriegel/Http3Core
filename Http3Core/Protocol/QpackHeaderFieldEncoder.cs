@@ -66,7 +66,7 @@ public static class QpackHeaderFieldEncoder
 
         return result;
     }
-    
+
     public static byte[] EncodeLiteralWithNameReferenceDynamic(int relativeIndex, string value, bool neverIndexed = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(relativeIndex);
@@ -76,4 +76,23 @@ public static class QpackHeaderFieldEncoder
         // 01 N T=0
         return [.. result, .. QpackString.Encode(value)];
     }
+
+    public static byte[] EncodeIndexedPostBase(int postBaseIndex)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(postBaseIndex);
+
+        var result = QpackInteger.Encode((ulong)postBaseIndex, 4);
+        result[0] |= 0x10; // 0001
+        return result;
+    }
+    
+    public static byte[] EncodeLiteralWithPostBaseNameReference(int postBaseIndex, string value, bool neverIndexed = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(postBaseIndex);
+
+        var result = QpackInteger.Encode((ulong)postBaseIndex, 3);
+        result[0] |= (byte)(0x08 | (neverIndexed ? 0x10 : 0x00));
+        // 0000 N Index (3+ bits)
+        return [.. result, .. QpackString.Encode(value)];
+    }    
 }

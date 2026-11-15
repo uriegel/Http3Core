@@ -6,6 +6,8 @@ public static class QpackFieldSectionDecoder
         ulong  totalNumberOfInserts, uint maximumTableCapacity,CancellationToken cancellationToken = default)
     {
         var prefix = await QpackFieldSectionPrefixDecoder.ReadDecodedAsync(stream, totalNumberOfInserts, maximumTableCapacity, cancellationToken);        
+        if (prefix.RequiredInsertCount > (ulong)dynamicTable.InsertCount)
+            throw new InvalidDataException($"Required Insert Count {prefix.RequiredInsertCount} exceeds the current Insert Count {dynamicTable.InsertCount}.");
 
         var fields = new List<QpackHeaderField>();
         while (true)

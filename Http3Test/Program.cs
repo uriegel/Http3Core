@@ -477,3 +477,39 @@ foreach (var field30 in fields30)
     Console.WriteLine($"{field30.Name}: {field30.Value}");
 
 Console.WriteLine();
+
+var table31 = new QpackDynamicTable(4096);
+table31.SetCapacity(4096);
+byte[] section31 = [0x02, 0x00, 0x80];
+using var stream31 = new MemoryStream(section31);
+try
+{
+    await QpackFieldSectionDecoder.DecodeAsync(stream31, table31, 1, 4096);
+}
+catch (InvalidDataException ex)
+{
+    Console.WriteLine(ex.Message);
+}
+
+Console.WriteLine();
+
+var table32 = new QpackDynamicTable(128);
+table32.SetCapacity(128);
+table32.Insert("x-header", "first");
+table32.Insert("x-header", "second");
+// Force eviction by reducing capacity.
+table32.SetCapacity(46);
+Console.WriteLine($"InsertCount: {table32.InsertCount}");
+Console.WriteLine($"Count: {table32.Count}");
+var entry32 = table32.GetAbsolute(1);
+Console.WriteLine($"{entry32.Name}: {entry32.Value}");
+try
+{
+    table32.GetAbsolute(0);
+}
+catch (InvalidOperationException ex)
+{
+    Console.WriteLine(ex.Message);
+}
+
+Console.WriteLine();

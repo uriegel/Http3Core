@@ -91,7 +91,7 @@ public static class QpackHeaderFieldEncoder
         ArgumentOutOfRangeException.ThrowIfNegative(postBaseIndex);
 
         var result = QpackInteger.Encode((ulong)postBaseIndex, 3);
-        result[0] |= (byte)(0x08 | (neverIndexed ? 0x10 : 0x00));
+        result[0] |= (byte)(0x08 | (neverIndexed ? 0x08 : 0x00));
         // 0000 N Index (3+ bits)
         return [.. result, .. QpackString.Encode(value)];
     }    

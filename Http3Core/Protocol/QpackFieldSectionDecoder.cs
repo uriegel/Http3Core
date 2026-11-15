@@ -2,11 +2,10 @@ namespace Http3Core.Protocol;
 
 public static class QpackFieldSectionDecoder
 {
-    public static async ValueTask<List<QpackHeaderField>> DecodeStaticAsync(Stream stream, CancellationToken cancellationToken = default)
+    public static async ValueTask<List<QpackHeaderField>> DecodeAsync(Stream stream, QpackDynamicTable dynamicTable,
+        ulong  totalNumberOfInserts, uint maximumTableCapacity,CancellationToken cancellationToken = default)
     {
-        var prefix = await QpackFieldSectionPrefixDecoder.ReadAsync(stream, cancellationToken);
-        if (prefix.EncodedRequiredInsertCount != 0)
-            throw new NotSupportedException("Dynamic table references are not supported yet.");
+        var prefix = await QpackFieldSectionPrefixDecoder.ReadDecodedAsync(stream, totalNumberOfInserts, maximumTableCapacity, cancellationToken);        
 
         var fields = new List<QpackHeaderField>();
         while (true)
@@ -31,6 +30,35 @@ public static class QpackFieldSectionDecoder
             {
                 // Literal Field Line With Literal Name
                 var field = await QpackHeaderFieldDecoder.ReadLiteralWithLiteralNameAsync(new PrefixByteStream((byte)firstByte, stream), cancellationToken);
+                fields.Add(field);
+            }
+            else if ((firstByte & 0xC0) == 0x80)
+            {
+                // Indexed Field Line — Dynamic Table
+                var field = await QpackHeaderFieldDecoder.ReadIndexedDynamicAsync(new PrefixByteStream((byte)firstByte, stream),
+                    dynamicTable, checked((int)prefix.Base), cancellationToken);
+
+                fields.Add(field);
+            }
+            else if ((firstByte & 0xC0) == 0x40 && (firstByte & 0x10) == 0)
+            {
+                // Literal Field Line With Name Reference — Dynamic Table
+                var field = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceDynamicAsync(new PrefixByteStream((byte)firstByte, stream),
+                    dynamicTable, checked((int)prefix.Base), cancellationToken);
+                fields.Add(field);
+            }
+            else if ((firstByte & 0xF0) == 0x10)
+            {
+                // Indexed Field Line With Post-Base Index
+                var field = await QpackHeaderFieldDecoder.ReadIndexedPostBaseAsync(new PrefixByteStream((byte)firstByte, stream),
+                    dynamicTable, checked((int)prefix.Base), cancellationToken);
+                fields.Add(field);
+            }
+            else if ((firstByte & 0xF0) == 0x00)
+            {
+                // Literal Field Line With Post-Base Name Reference
+                var field = await QpackHeaderFieldDecoder.ReadLiteralWithPostBaseNameReferenceAsync(new PrefixByteStream((byte)firstByte, stream),
+                    dynamicTable, checked((int)prefix.Base), cancellationToken);
                 fields.Add(field);
             }
             else

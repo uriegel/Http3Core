@@ -142,7 +142,7 @@ public static class QpackHeaderFieldDecoder
         if ((firstByte & 0xF0) != 0x00)
             throw new InvalidDataException("Expected Literal Field Line With Post-Base Name Reference.");
 
-        bool neverIndexed = (firstByte & 0x10) != 0;
+        bool neverIndexed = (firstByte & 0x08) != 0;
         ulong postBaseIndex = await QpackInteger.ReadAsync(stream, 3, (byte)firstByte, cancellationToken);
         if (postBaseIndex > int.MaxValue)
             throw new InvalidDataException("Invalid post-base index.");

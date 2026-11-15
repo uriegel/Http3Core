@@ -436,34 +436,44 @@ Console.WriteLine($"{field26.Name}: {field26.Value}");
 
 Console.WriteLine();
 
-byte[] data27 = [0x00, 0x00, 0xD1];
-using var stream27 = new MemoryStream(data27);
-var fields27 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream27);
+var table27 = new QpackDynamicTable(4096);
+table27.SetCapacity(4096);
+table27.Insert("x-custom-header", "hello");
+byte[] section27 = [0x02, 0x00, 0x80];
+using var stream27 = new MemoryStream(section27);
+var fields27 = await QpackFieldSectionDecoder.DecodeAsync(stream27, table27, 1, 4096);
 foreach (var field27 in fields27)
     Console.WriteLine($"{field27.Name}: {field27.Value}");
 
-Console.WriteLine();
-
-var section28 = new List<byte>
-{
-    0x00, 0x00 // Field section prefix
-};
-section28.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStatic(44, "application/json"));
-using var stream28 = new MemoryStream([.. section28]);
-var fields28 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream28);
+var section28 = new List<byte> { 0x02, 0x00 };
+section28.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceDynamic(0, "world"));
+using var stream28 = new MemoryStream(section28.ToArray());
+var fields28 = await QpackFieldSectionDecoder.DecodeAsync(stream28, table27, 1, 4096);
 foreach (var field28 in fields28)
     Console.WriteLine($"{field28.Name}: {field28.Value}");
+Console.WriteLine();
+
+var table29 = new QpackDynamicTable(4096);
+table29.SetCapacity(4096);
+table29.Insert("content-type", "application/json"); // Absolute index 0
+table29.Insert("x-custom-header", "hello");         // Absolute index 1
+byte[] section29 = [0x02, 0x00, 0x10];
+using var stream29 = new MemoryStream(section29);
+var fields29 = await QpackFieldSectionDecoder.DecodeAsync(stream29, table29, 1, 4096);
+foreach (var field29 in fields29)
+    Console.WriteLine($"{field29.Name}: {field29.Value}");
 
 Console.WriteLine();
 
-var section29 = new List<byte>
-{
-    0x00, 0x00 // Field section prefix
-};
-section29.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithLiteralName("x-custom-header", "hello"));
-using var stream29 = new MemoryStream([.. section29]);
-var fields29 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream29);
-foreach (var field29 in fields29)
-    Console.WriteLine($"{field29.Name}: {field29.Value}");
+var table30 = new QpackDynamicTable(4096);
+table30.SetCapacity(4096);
+table30.Insert("content-type", "application/json");
+table30.Insert("x-custom-header", "hello");
+var section30 = new List<byte> { 0x02, 0x00 };
+section30.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithPostBaseNameReference(0, "world"));
+using var stream30 = new MemoryStream(section30.ToArray());
+var fields30 = await QpackFieldSectionDecoder.DecodeAsync(stream30, table30, 1, 4096);
+foreach (var field30 in fields30)
+    Console.WriteLine($"{field30.Name}: {field30.Value}");
 
 Console.WriteLine();

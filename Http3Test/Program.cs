@@ -519,3 +519,44 @@ catch (InvalidOperationException ex)
 }
 
 Console.WriteLine();
+
+var tracker33 = new QpackInsertCountTracker();
+var table33 = new QpackDynamicTable(4096);
+table33.SetCapacity(4096);
+var manager33 = new QpackBlockedStreamManager(1, tracker33);
+var decodeTask33 = manager33.WaitForInsertCountAsync(0, table33, 1);
+Console.WriteLine($"Blocked streams: {manager33.BlockedStreamCount}");
+// Simulate receiving an encoder instruction.
+table33.Insert("x-custom-header", "hello");
+tracker33.NotifyInsertCountChanged();
+await decodeTask33;
+
+Console.WriteLine($"Blocked streams: {manager33.BlockedStreamCount}");
+
+Console.WriteLine();
+
+var tracker34 = new QpackInsertCountTracker();
+var table34 = new QpackDynamicTable(4096);
+table34.SetCapacity(4096);
+var manager34 = new QpackBlockedStreamManager(1, tracker34);
+// First stream becomes blocked.
+var firstWait34 = manager34.WaitForInsertCountAsync(0, table34, 1);
+var secondWait = manager34.WaitForInsertCountAsync(0, table34, 1);
+Console.WriteLine($"Blocked streams: {manager34.BlockedStreamCount}");
+// A second, different stream must not be allowed to block.
+try
+{
+    await manager34.WaitForInsertCountAsync(4, table34, 1);
+}
+catch (InvalidDataException ex)
+{
+    Console.WriteLine(ex.Message);
+}
+Console.WriteLine($"Blocked streams: {manager34.BlockedStreamCount}");
+// Simulate receiving an encoder instruction.
+table34.Insert("x-custom-header", "hello");
+tracker34.NotifyInsertCountChanged();
+await firstWait34;
+Console.WriteLine($"Blocked streams: {manager34.BlockedStreamCount}");
+
+Console.WriteLine();

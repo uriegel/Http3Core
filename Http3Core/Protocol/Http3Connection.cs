@@ -175,12 +175,26 @@ public sealed class Http3Connection
     {
         Console.WriteLine($"QPACK {name} stream received: {stream.Id}");
 
-        // Keep the critical stream open until the connection is cancelled.
-        await Task.Delay(Timeout.Infinite, cancellationToken);
-    }
+        if (name == "encoder")
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await QpackEncoderStreamInstruction.ReadAsync(stream, peerDynamicTable, cancellationToken);
+                insertCountTracker.NotifyInsertCountChanged();
+                Console.WriteLine($"QPACK Insert Count: {peerDynamicTable.InsertCount}");
+            }
+        }
+        else
+        {
+            // Decoder stream handling will come later.
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+    }    
     
     readonly QuicConnection connection;
     readonly ConcurrentDictionary<long, Task> activeStreams = [];
+    readonly QpackDynamicTable peerDynamicTable = new(4096);
+    readonly QpackInsertCountTracker insertCountTracker = new();    
     QuicStream? qpackEncoderStream;
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;

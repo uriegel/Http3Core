@@ -3,11 +3,10 @@ namespace Http3Core.Protocol;
 public static class QpackFieldSectionDecoder
 {
     public static async ValueTask<List<QpackHeaderField>> DecodeAsync(Stream stream, QpackDynamicTable dynamicTable,
-        ulong  totalNumberOfInserts, uint maximumTableCapacity,CancellationToken cancellationToken = default)
+        QpackInsertCountTracker insertCountTracker, ulong totalNumberOfInserts, uint maximumTableCapacity, CancellationToken cancellationToken = default)
     {
         var prefix = await QpackFieldSectionPrefixDecoder.ReadDecodedAsync(stream, totalNumberOfInserts, maximumTableCapacity, cancellationToken);        
-        if (prefix.RequiredInsertCount > (ulong)dynamicTable.InsertCount)
-            throw new InvalidDataException($"Required Insert Count {prefix.RequiredInsertCount} exceeds the current Insert Count {dynamicTable.InsertCount}.");
+        await insertCountTracker.WaitForInsertCountAsync(dynamicTable, prefix.RequiredInsertCount, cancellationToken);        
 
         var fields = new List<QpackHeaderField>();
         while (true)

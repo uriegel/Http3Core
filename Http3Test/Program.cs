@@ -435,3 +435,35 @@ var field26 = await QpackHeaderFieldDecoder.ReadLiteralWithPostBaseNameReference
 Console.WriteLine($"{field26.Name}: {field26.Value}");
 
 Console.WriteLine();
+
+byte[] data27 = [0x00, 0x00, 0xD1];
+using var stream27 = new MemoryStream(data27);
+var fields27 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream27);
+foreach (var field27 in fields27)
+    Console.WriteLine($"{field27.Name}: {field27.Value}");
+
+Console.WriteLine();
+
+var section28 = new List<byte>
+{
+    0x00, 0x00 // Field section prefix
+};
+section28.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStatic(44, "application/json"));
+using var stream28 = new MemoryStream([.. section28]);
+var fields28 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream28);
+foreach (var field28 in fields28)
+    Console.WriteLine($"{field28.Name}: {field28.Value}");
+
+Console.WriteLine();
+
+var section29 = new List<byte>
+{
+    0x00, 0x00 // Field section prefix
+};
+section29.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithLiteralName("x-custom-header", "hello"));
+using var stream29 = new MemoryStream([.. section29]);
+var fields29 = await QpackFieldSectionDecoder.DecodeStaticAsync(stream29);
+foreach (var field29 in fields29)
+    Console.WriteLine($"{field29.Name}: {field29.Value}");
+
+Console.WriteLine();

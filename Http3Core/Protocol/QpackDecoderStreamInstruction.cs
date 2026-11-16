@@ -43,10 +43,11 @@ public static class QpackDecoderStreamInstruction
 
     public static async ValueTask<long> ReadSectionAcknowledgmentAsync(Stream stream, CancellationToken cancellationToken = default)
     {
-        int firstByte = stream.ReadByte();
-        if (firstByte < 0)
+        var buffer = new byte[1];
+        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken);
+        if (bytesRead == 0)
             throw new EndOfStreamException();
-
+        byte firstByte = buffer[0];
         if ((firstByte & 0x80) == 0)
             throw new InvalidDataException("Not a Section Acknowledgment.");
 
@@ -59,10 +60,11 @@ public static class QpackDecoderStreamInstruction
 
     public static async ValueTask<long> ReadStreamCancellationAsync(Stream stream, CancellationToken cancellationToken = default)
     {
-        int firstByte = stream.ReadByte();
-        if (firstByte < 0)
+        var buffer = new byte[1];
+        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken);
+        if (bytesRead == 0)
             throw new EndOfStreamException();
-
+        byte firstByte = buffer[0];
         if ((firstByte & 0xC0) != 0x40)
             throw new InvalidDataException("Not a Stream Cancellation.");
 
@@ -75,10 +77,11 @@ public static class QpackDecoderStreamInstruction
 
     public static async ValueTask<ulong> ReadInsertCountIncrementAsync(Stream stream, CancellationToken cancellationToken = default)
     {
-        int firstByte = stream.ReadByte();
-        if (firstByte < 0)
+        var buffer = new byte[1];
+        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken);
+        if (bytesRead == 0)
             throw new EndOfStreamException();
-
+        byte firstByte = buffer[0];
         if ((firstByte & 0xC0) != 0)
             throw new InvalidDataException("Not an Insert Count Increment.");
 
@@ -91,11 +94,11 @@ public static class QpackDecoderStreamInstruction
 
     public static async ValueTask<QpackDecoderStreamInstructionResult> ReadAsync(Stream stream, CancellationToken cancellationToken = default)
     {
-        int firstByte = stream.ReadByte();
-        if (firstByte < 0)
+        var buffer = new byte[1];
+        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, 1), cancellationToken);
+        if (bytesRead == 0)
             throw new EndOfStreamException();
-
-        byte first = (byte)firstByte;
+        byte first = buffer[0];
         if ((first & 0x80) != 0)
         {
             ulong streamId = await QpackInteger.ReadAsync(stream, 7, first, cancellationToken);

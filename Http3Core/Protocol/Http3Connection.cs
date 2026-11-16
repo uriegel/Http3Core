@@ -182,6 +182,18 @@ public sealed class Http3Connection
                 await QpackEncoderStreamInstruction.ReadAsync(stream, peerDynamicTable, cancellationToken);
                 insertCountTracker.NotifyInsertCountChanged();
                 Console.WriteLine($"QPACK Insert Count: {peerDynamicTable.InsertCount}");
+
+                int previousInsertCount = peerDynamicTable.InsertCount;
+                await QpackEncoderStreamInstruction.ReadAsync(stream, peerDynamicTable, cancellationToken);
+                int newInsertCount = peerDynamicTable.InsertCount;
+                insertCountTracker.NotifyInsertCountChanged();
+                if (newInsertCount > previousInsertCount)
+                {
+                    ulong increment = (ulong)(newInsertCount - previousInsertCount);
+                    byte[] instruction = QpackDecoderStreamInstruction.EncodeInsertCountIncrement(increment);
+                    await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
+                }
+                Console.WriteLine($"QPACK Insert Count: {newInsertCount}");
             }
         }
         else
@@ -191,10 +203,24 @@ public sealed class Http3Connection
         }
     }    
     
+    async Task WriteQpackDecoderInstructionAsync(byte[] instruction, CancellationToken cancellationToken)
+    {
+        await qpackDecoderWriteLock.WaitAsync(cancellationToken);
+        try
+        {
+            await qpackDecoderStream!.WriteAsync(instruction, cancellationToken);
+        }
+        finally
+        {
+            qpackDecoderWriteLock.Release();
+        }
+    }    
+    
     readonly QuicConnection connection;
     readonly ConcurrentDictionary<long, Task> activeStreams = [];
     readonly QpackDynamicTable peerDynamicTable = new(4096);
     readonly QpackInsertCountTracker insertCountTracker = new();    
+    readonly SemaphoreSlim qpackDecoderWriteLock = new(1, 1);
     QuicStream? qpackEncoderStream;
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;

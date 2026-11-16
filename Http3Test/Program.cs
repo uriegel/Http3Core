@@ -560,3 +560,40 @@ await firstWait34;
 Console.WriteLine($"Blocked streams: {manager34.BlockedStreamCount}");
 
 Console.WriteLine();
+
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(0)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(4)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(127)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeStreamCancellation(0)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeStreamCancellation(4)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeStreamCancellation(63)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeInsertCountIncrement(1)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeInsertCountIncrement(10)));
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeInsertCountIncrement(64)));
+byte[] data = QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(127);
+using var stream35 = new MemoryStream(data);
+long streamId =await QpackDecoderStreamInstruction.ReadSectionAcknowledgmentAsync(stream35);
+Console.WriteLine($"Stream ID: {streamId}");
+data = QpackDecoderStreamInstruction.EncodeStreamCancellation(127);
+using var stream36 = new MemoryStream(data);
+long streamId36 = await QpackDecoderStreamInstruction.ReadStreamCancellationAsync(stream36);
+Console.WriteLine($"Stream ID: {streamId36}");
+data = QpackDecoderStreamInstruction.EncodeInsertCountIncrement(64);
+using var stream37 = new MemoryStream(data);
+ulong increment = await QpackDecoderStreamInstruction.ReadInsertCountIncrementAsync(stream37);
+Console.WriteLine($"Insert Count Increment: {increment}");
+
+data =
+[
+    .. QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(4),
+    .. QpackDecoderStreamInstruction.EncodeStreamCancellation(8),
+    .. QpackDecoderStreamInstruction.EncodeInsertCountIncrement(10)
+];
+using var stream38 = new MemoryStream(data);
+while (stream38.Position < stream38.Length)
+{
+    var instruction = await QpackDecoderStreamInstruction.ReadAsync(stream38);
+    Console.WriteLine($"{instruction.Type}: {instruction.Value}");
+}
+
+Console.WriteLine();

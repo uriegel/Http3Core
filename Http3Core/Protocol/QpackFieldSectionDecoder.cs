@@ -3,7 +3,7 @@ namespace Http3Core.Protocol;
 public static class QpackFieldSectionDecoder
 {
     public static async ValueTask<List<QpackHeaderField>> DecodeAsync(Stream stream, QpackDynamicTable dynamicTable,
-        QpackInsertCountTracker insertCountTracker, ulong totalNumberOfInserts, uint maximumTableCapacity, CancellationToken cancellationToken = default)
+        QpackInsertCountTracker insertCountTracker, ulong totalNumberOfInserts, uint maximumTableCapacity, Action? onDynamicTableReference = null, CancellationToken cancellationToken = default)
     {
         var prefix = await QpackFieldSectionPrefixDecoder.ReadDecodedAsync(stream, totalNumberOfInserts, maximumTableCapacity, cancellationToken);        
         await insertCountTracker.WaitForInsertCountAsync(dynamicTable, prefix.RequiredInsertCount, cancellationToken);        
@@ -40,6 +40,7 @@ public static class QpackFieldSectionDecoder
                     dynamicTable, checked((int)prefix.Base), cancellationToken);
 
                 fields.Add(field);
+                onDynamicTableReference?.Invoke();
             }
             else if ((firstByte & 0xC0) == 0x40 && (firstByte & 0x10) == 0)
             {
@@ -47,6 +48,7 @@ public static class QpackFieldSectionDecoder
                 var field = await QpackHeaderFieldDecoder.ReadLiteralWithNameReferenceDynamicAsync(new PrefixByteStream((byte)firstByte, stream),
                     dynamicTable, checked((int)prefix.Base), cancellationToken);
                 fields.Add(field);
+                onDynamicTableReference?.Invoke();
             }
             else if ((firstByte & 0xF0) == 0x10)
             {
@@ -54,6 +56,7 @@ public static class QpackFieldSectionDecoder
                 var field = await QpackHeaderFieldDecoder.ReadIndexedPostBaseAsync(new PrefixByteStream((byte)firstByte, stream),
                     dynamicTable, checked((int)prefix.Base), cancellationToken);
                 fields.Add(field);
+                onDynamicTableReference?.Invoke();
             }
             else if ((firstByte & 0xF0) == 0x00)
             {
@@ -61,6 +64,7 @@ public static class QpackFieldSectionDecoder
                 var field = await QpackHeaderFieldDecoder.ReadLiteralWithPostBaseNameReferenceAsync(new PrefixByteStream((byte)firstByte, stream),
                     dynamicTable, checked((int)prefix.Base), cancellationToken);
                 fields.Add(field);
+                onDynamicTableReference?.Invoke();
             }
             else
                 throw new NotSupportedException($"Unsupported field-line representation: 0x{firstByte:X2}");

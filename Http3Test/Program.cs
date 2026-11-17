@@ -436,25 +436,33 @@ Console.WriteLine($"{field26.Name}: {field26.Value}");
 
 Console.WriteLine();
 
+bool referencesDynamicTable = false;
 var tracker27 = new QpackInsertCountTracker();
 var table27 = new QpackDynamicTable(4096);
 table27.SetCapacity(4096);
 table27.Insert("x-custom-header", "hello");
 byte[] section27 = [0x02, 0x00, 0x80];
 using var stream27 = new MemoryStream(section27);
-var fields27 = await QpackFieldSectionDecoder.DecodeAsync(stream27, table27, tracker27, 1, 4096);
+var fields27 = await QpackFieldSectionDecoder.DecodeAsync(stream27, table27, tracker27, 1, 4096, () => referencesDynamicTable = true);
 foreach (var field27 in fields27)
     Console.WriteLine($"{field27.Name}: {field27.Value}");
+Console.WriteLine($"References dynamic table: {referencesDynamicTable}");
 
+Console.WriteLine();
+
+referencesDynamicTable = false;
 var tracker28 = new QpackInsertCountTracker();
 var section28 = new List<byte> { 0x02, 0x00 };
 section28.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceDynamic(0, "world"));
 using var stream28 = new MemoryStream(section28.ToArray());
-var fields28 = await QpackFieldSectionDecoder.DecodeAsync(stream28, table27, tracker28, 1, 4096);
+var fields28 = await QpackFieldSectionDecoder.DecodeAsync(stream28, table27, tracker28, 1, 4096, () => referencesDynamicTable = true);
 foreach (var field28 in fields28)
     Console.WriteLine($"{field28.Name}: {field28.Value}");
+Console.WriteLine($"References dynamic table: {referencesDynamicTable}");
+
 Console.WriteLine();
 
+referencesDynamicTable = false;
 var tracker29 = new QpackInsertCountTracker();
 var table29 = new QpackDynamicTable(4096);
 table29.SetCapacity(4096);
@@ -462,12 +470,14 @@ table29.Insert("content-type", "application/json"); // Absolute index 0
 table29.Insert("x-custom-header", "hello");         // Absolute index 1
 byte[] section29 = [0x02, 0x00, 0x10];
 using var stream29 = new MemoryStream(section29);
-var fields29 = await QpackFieldSectionDecoder.DecodeAsync(stream29, table29, tracker29, 1, 4096);
+var fields29 = await QpackFieldSectionDecoder.DecodeAsync(stream29, table29, tracker29, 1, 4096, () => referencesDynamicTable = true);
 foreach (var field29 in fields29)
     Console.WriteLine($"{field29.Name}: {field29.Value}");
+Console.WriteLine($"References dynamic table: {referencesDynamicTable}");
 
 Console.WriteLine();
 
+referencesDynamicTable = false;
 var tracker30 = new QpackInsertCountTracker();
 var table30 = new QpackDynamicTable(4096);
 table30.SetCapacity(4096);
@@ -476,19 +486,20 @@ table30.Insert("x-custom-header", "hello");
 var section30 = new List<byte> { 0x02, 0x00 };
 section30.AddRange(QpackHeaderFieldEncoder.EncodeLiteralWithPostBaseNameReference(0, "world"));
 using var stream30 = new MemoryStream([.. section30]);
-var fields30 = await QpackFieldSectionDecoder.DecodeAsync(stream30, table30, tracker30, 1, 4096);
+var fields30 = await QpackFieldSectionDecoder.DecodeAsync(stream30, table30, tracker30, 1, 4096, () => referencesDynamicTable = true);
 foreach (var field30 in fields30)
     Console.WriteLine($"{field30.Name}: {field30.Value}");
+Console.WriteLine($"References dynamic table: {referencesDynamicTable}");
 
 Console.WriteLine();
 
+referencesDynamicTable = false;
 var tracker31 = new QpackInsertCountTracker();
-
 var table31 = new QpackDynamicTable(4096);
 table31.SetCapacity(4096);
 byte[] section31 = [0x02, 0x00, 0x80];
 using var stream31 = new MemoryStream(section31);
-var decodeTask = QpackFieldSectionDecoder.DecodeAsync(stream31, table31, tracker31, 0, 4096);
+var decodeTask = QpackFieldSectionDecoder.DecodeAsync(stream31, table31, tracker31, 0, 4096, () => referencesDynamicTable = true);
 // Simulate an insertion arriving on the encoder stream.
 table31.Insert("x-custom-header", "hello");
 // Notify waiting field sections.
@@ -496,6 +507,21 @@ tracker31.NotifyInsertCountChanged();
 var fields31 = await decodeTask;
 foreach (var field31 in fields31)
     Console.WriteLine($"{field31.Name}: {field31.Value}");
+Console.WriteLine($"References dynamic table: {referencesDynamicTable}");
+
+Console.WriteLine();
+
+byte[] staticSection = [0x00, 0x00, 0xD1];
+using var staticStream = new MemoryStream(staticSection);
+bool staticReferencesDynamicTable = false;
+var staticFields = await QpackFieldSectionDecoder.DecodeAsync(
+    staticStream,
+    table31,
+    tracker31,
+    0,
+    4096,
+    () => staticReferencesDynamicTable = true);
+Console.WriteLine($"References dynamic table: {staticReferencesDynamicTable}");
 
 Console.WriteLine();
 

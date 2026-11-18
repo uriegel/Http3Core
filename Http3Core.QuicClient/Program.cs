@@ -42,40 +42,16 @@ var http3Task = http3Connection.RunAsync(cancellation.Token);
 
 Console.WriteLine("HTTP/3 connection started.");
 
-var encoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional);
-await QuicVariableInteger.WriteAsync(encoderStream, Http3StreamType.QpackEncoder);
-Console.WriteLine("Client QPACK encoder stream opened.");
-
+await http3Connection.Initialized;
+var encoderStream = http3Connection.QpackEncoderStream!;
 byte[] instruction1 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096);
 byte[] instruction2 = QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom-header", "hello");
 await encoderStream.WriteAsync(instruction1);
 await encoderStream.WriteAsync(instruction2);
 
-QuicStream controlStream = null!;
-QuicStream peerEncoderStream = null!;
-QuicStream decoderStream = null!;
-for (int i = 0; i < 3; i++)
-{
-    var stream = await connection.AcceptInboundStreamAsync();
-    ulong streamType = await QuicVariableInteger.ReadAsync(stream);
-    Console.WriteLine($"Received stream type: {streamType}");
-    switch (streamType)
-    {
-        case Http3StreamType.Control:
-            controlStream = stream;
-            break;
-
-        case Http3StreamType.QpackEncoder:
-            peerEncoderStream = stream;
-            break;
-
-        case Http3StreamType.QpackDecoder:
-            decoderStream = stream;
-            break;
-    }
-}
-var instruction = await QpackDecoderStreamInstruction.ReadAsync(decoderStream!);
-Console.WriteLine($"{instruction.Type}: {instruction.Value}");
+var requestStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
+byte[] fieldSection = [0x02, 0x00, 0x80];
+await Http3FrameWriter.WriteAsync(requestStream, 0x01, fieldSection);
 
 Console.WriteLine("Press ENTER to close the connection.");
 Console.ReadLine();

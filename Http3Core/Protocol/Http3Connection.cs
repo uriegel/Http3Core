@@ -6,6 +6,8 @@ namespace Http3Core.Protocol;
 public sealed class Http3Connection
 {
     public Http3Settings? PeerSettings { get; private set; }
+    public QuicStream? QpackEncoderStream { get; private set; }
+    public Task Initialized => initialized.Task;
 
     public Http3Connection(QuicConnection connection) => this.connection = connection;
 
@@ -30,6 +32,7 @@ public sealed class Http3Connection
         Console.WriteLine("Server SETTINGS sent.");
 
         await OpenQpackStreamsAsync(cancellationToken);
+        initialized.TrySetResult(true);
 
         try
         {
@@ -73,9 +76,8 @@ public sealed class Http3Connection
                 if (stream.Type == QuicStreamType.Bidirectional)
                 {
                     Console.WriteLine($"Received bidirectional stream {stream.Id}");
-
-                    // Request handling will come later.
-                    return;
+                    await HandleRequestStreamAsync(stream, cancellationToken);
+                    return;                
                 }
 
                 var streamType = await QuicVariableInteger.ReadAsync(stream, cancellationToken);
@@ -160,8 +162,8 @@ public sealed class Http3Connection
     async Task OpenQpackStreamsAsync(CancellationToken cancellationToken)
     {
         // QPACK encoder stream
-        qpackEncoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
-        await QuicVariableInteger.WriteAsync(qpackEncoderStream, Http3StreamType.QpackEncoder, cancellationToken);
+        QpackEncoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
+        await QuicVariableInteger.WriteAsync(QpackEncoderStream, Http3StreamType.QpackEncoder, cancellationToken);
 
         // QPACK decoder stream
         qpackDecoderStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, cancellationToken);
@@ -198,11 +200,14 @@ public sealed class Http3Connection
         }
         else
         {
-            // Decoder stream handling will come later.
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var instruction = await QpackDecoderStreamInstruction.ReadAsync(stream, cancellationToken);
+                Console.WriteLine($"QPACK decoder instruction: {instruction.Type}: {instruction.Value}");
+            }
         }
-    }    
-    
+    }
+
     async Task WriteQpackDecoderInstructionAsync(byte[] instruction, CancellationToken cancellationToken)
     {
         await qpackDecoderWriteLock.WaitAsync(cancellationToken);
@@ -216,12 +221,40 @@ public sealed class Http3Connection
         }
     }    
     
+    async Task HandleRequestStreamAsync(QuicStream stream, CancellationToken cancellationToken)
+    {
+        // Read the first HTTP/3 frame.
+        var frame = await Http3FrameReader.ReadAsync(stream, cancellationToken);
+        if (frame.Type != 0x01) // HEADERS
+            throw new InvalidDataException($"Expected HEADERS frame, received 0x{frame.Type:X}.");
+
+        Console.WriteLine($"Received HEADERS frame on stream {stream.Id}");
+
+        bool referencesDynamicTable = false;
+
+        using var payload = new MemoryStream(frame.Payload);
+        var fields = await QpackFieldSectionDecoder.DecodeAsync(payload, peerDynamicTable, insertCountTracker,
+            (ulong)peerDynamicTable.InsertCount, 4096, () => referencesDynamicTable = true, cancellationToken);
+        foreach (var field in fields)
+            Console.WriteLine($"{field.Name}: {field.Value}");
+
+        // Send Section Acknowledgment if dynamic table entries were referenced.
+        if (referencesDynamicTable)
+        {
+            byte[] instruction = QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(stream.Id);
+            await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
+
+            Console.WriteLine($"Section Acknowledgment sent for stream {stream.Id}");
+        }
+    }    
+    
     readonly QuicConnection connection;
     readonly ConcurrentDictionary<long, Task> activeStreams = [];
     readonly QpackDynamicTable peerDynamicTable = new(4096);
-    readonly QpackInsertCountTracker insertCountTracker = new();    
+    readonly QpackInsertCountTracker insertCountTracker = new();
     readonly SemaphoreSlim qpackDecoderWriteLock = new(1, 1);
-    QuicStream? qpackEncoderStream;
+    readonly TaskCompletionSource<bool> initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;
 }

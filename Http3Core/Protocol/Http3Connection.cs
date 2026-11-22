@@ -8,6 +8,7 @@ public sealed class Http3Connection
     public Http3Settings? PeerSettings { get; private set; }
     public QuicStream? QpackEncoderStream { get; private set; }
     public Task Initialized => initialized.Task;
+    public Task SectionAcknowledged => sectionAcknowledged.Task;
 
     public Http3Connection(QuicConnection connection) => this.connection = connection;
 
@@ -72,6 +73,8 @@ public sealed class Http3Connection
         if (referencesDynamicTable)
             outstandingStreams.Add(streamId);
     }    
+
+    public int GetOutstandingFieldSectionCount(long streamId) => outstandingStreams.GetOutstandingCount(streamId);
 
     async Task HandleStreamAsync(QuicStream stream, CancellationToken cancellationToken)
     {
@@ -214,6 +217,7 @@ public sealed class Http3Connection
                 {
                     case QpackDecoderStreamInstructionType.SectionAcknowledgment:
                         outstandingStreams.Acknowledge((long)instruction.Value);
+                        sectionAcknowledged.TrySetResult(true);
                         Console.WriteLine($"Section Acknowledgment received for stream {instruction.Value}");
                         break;
                     case QpackDecoderStreamInstructionType.StreamCancellation:
@@ -299,6 +303,7 @@ public sealed class Http3Connection
     readonly SemaphoreSlim qpackDecoderWriteLock = new(1, 1);
     readonly TaskCompletionSource<bool> initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly QpackOutstandingStreamManager outstandingStreams = new();
+    readonly TaskCompletionSource<bool> sectionAcknowledged = new(TaskCreationOptions.RunContinuationsAsynchronously);    
 
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;

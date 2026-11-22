@@ -51,8 +51,21 @@ await encoderStream.WriteAsync(instruction2);
 
 var requestStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
 byte[] fieldSection = [0x02, 0x00, 0x80];
+
+// Register the dynamic-table reference before sending HEADERS.
+http3Connection.RegisterOutstandingFieldSection(requestStream.Id, referencesDynamicTable: true);
 await Http3FrameWriter.WriteAsync(requestStream, 0x01, fieldSection);
 
+Console.WriteLine(
+    $"Outstanding before ACK: " +
+    $"{http3Connection.GetOutstandingFieldSectionCount(requestStream.Id)}");
+
+await http3Connection.SectionAcknowledged;
+
+Console.WriteLine(
+    $"Outstanding after ACK: " +
+    $"{http3Connection.GetOutstandingFieldSectionCount(requestStream.Id)}");
+    
 Console.WriteLine("Press ENTER to close the connection.");
 Console.ReadLine();
 

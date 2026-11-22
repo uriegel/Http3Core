@@ -9,6 +9,7 @@ public sealed class Http3Connection
     public QuicStream? QpackEncoderStream { get; private set; }
     public Task Initialized => initialized.Task;
     public Task SectionAcknowledged => sectionAcknowledged.Task;
+    public Task<long> StreamCancelled => streamCancelled.Task;
 
     public Http3Connection(QuicConnection connection) => this.connection = connection;
 
@@ -76,6 +77,15 @@ public sealed class Http3Connection
 
     public int GetOutstandingFieldSectionCount(long streamId) => outstandingStreams.GetOutstandingCount(streamId);
 
+    public async Task CancelQpackStreamAsync(long streamId, CancellationToken cancellationToken = default)
+    {
+        if (qpackDecoderStream is null)
+            throw new InvalidOperationException("QPACK decoder stream is not initialized.");
+
+        var instruction = QpackDecoderStreamInstruction.EncodeStreamCancellation(streamId);
+        await qpackDecoderStream.WriteAsync(instruction, cancellationToken);
+    }
+
     async Task HandleStreamAsync(QuicStream stream, CancellationToken cancellationToken)
     {
         await using (stream)
@@ -86,7 +96,7 @@ public sealed class Http3Connection
                 {
                     Console.WriteLine($"Received bidirectional stream {stream.Id}");
                     await HandleRequestStreamAsync(stream, cancellationToken);
-                    return;                
+                    return;
                 }
 
                 var streamType = await QuicVariableInteger.ReadAsync(stream, cancellationToken);
@@ -222,7 +232,11 @@ public sealed class Http3Connection
                         break;
                     case QpackDecoderStreamInstructionType.StreamCancellation:
                         outstandingStreams.Cancel((long)instruction.Value);
+                        streamCancelled.TrySetResult((long)instruction.Value);
                         Console.WriteLine($"Stream Cancellation received for stream {instruction.Value}");
+                        Console.WriteLine(
+                            $"Outstanding after cancellation: " +
+                            $"{outstandingStreams.GetOutstandingCount((long)instruction.Value)}");                        
                         break;
                     case QpackDecoderStreamInstructionType.InsertCountIncrement:
                         // Already handled by the existing insert-count logic.
@@ -304,6 +318,7 @@ public sealed class Http3Connection
     readonly TaskCompletionSource<bool> initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly QpackOutstandingStreamManager outstandingStreams = new();
     readonly TaskCompletionSource<bool> sectionAcknowledged = new(TaskCreationOptions.RunContinuationsAsynchronously);    
+    readonly TaskCompletionSource<long> streamCancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;

@@ -67,6 +67,12 @@ public sealed class Http3Connection
         }
     }
 
+    public void RegisterOutstandingFieldSection(long streamId, bool referencesDynamicTable)
+    {
+        if (referencesDynamicTable)
+            outstandingStreams.Add(streamId);
+    }    
+
     async Task HandleStreamAsync(QuicStream stream, CancellationToken cancellationToken)
     {
         await using (stream)
@@ -204,6 +210,20 @@ public sealed class Http3Connection
             {
                 var instruction = await QpackDecoderStreamInstruction.ReadAsync(stream, cancellationToken);
                 Console.WriteLine($"QPACK decoder instruction: {instruction.Type}: {instruction.Value}");
+                switch (instruction.Type)
+                {
+                    case QpackDecoderStreamInstructionType.SectionAcknowledgment:
+                        outstandingStreams.Acknowledge((long)instruction.Value);
+                        Console.WriteLine($"Section Acknowledgment received for stream {instruction.Value}");
+                        break;
+                    case QpackDecoderStreamInstructionType.StreamCancellation:
+                        outstandingStreams.Cancel((long)instruction.Value);
+                        Console.WriteLine($"Stream Cancellation received for stream {instruction.Value}");
+                        break;
+                    case QpackDecoderStreamInstructionType.InsertCountIncrement:
+                        // Already handled by the existing insert-count logic.
+                        break;
+                }                
             }
         }
     }
@@ -219,8 +239,8 @@ public sealed class Http3Connection
         {
             qpackDecoderWriteLock.Release();
         }
-    }    
-    
+    }
+
     async Task HandleRequestStreamAsync(QuicStream stream, CancellationToken cancellationToken)
     {
         // Read the first HTTP/3 frame.
@@ -233,10 +253,27 @@ public sealed class Http3Connection
         bool referencesDynamicTable = false;
 
         using var payload = new MemoryStream(frame.Payload);
-        var fields = await QpackFieldSectionDecoder.DecodeAsync(payload, peerDynamicTable, insertCountTracker,
-            (ulong)peerDynamicTable.InsertCount, 4096, () => referencesDynamicTable = true, cancellationToken);
-        foreach (var field in fields)
-            Console.WriteLine($"{field.Name}: {field.Value}");
+        try
+        {
+            var fields = await QpackFieldSectionDecoder.DecodeAsync(payload, peerDynamicTable, insertCountTracker,
+                (ulong)peerDynamicTable.InsertCount, 4096,
+                () =>
+                {
+                    if (!referencesDynamicTable)
+                    {
+                        referencesDynamicTable = true;
+                        outstandingStreams.Add(stream.Id);
+                    }
+                }, cancellationToken);
+            foreach (var field in fields)
+                Console.WriteLine($"{field.Name}: {field.Value}");
+        }
+        catch
+        {
+            if (referencesDynamicTable)
+                await SendQpackStreamCancellationAsync(stream.Id, cancellationToken);
+            throw;
+        }
 
         // Send Section Acknowledgment if dynamic table entries were referenced.
         if (referencesDynamicTable)
@@ -248,12 +285,20 @@ public sealed class Http3Connection
         }
     }    
     
+    async Task SendQpackStreamCancellationAsync(long streamId, CancellationToken cancellationToken)
+    {
+        var instruction = QpackDecoderStreamInstruction.EncodeStreamCancellation(streamId);
+        await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
+        Console.WriteLine($"Stream Cancellation sent for stream {streamId}");
+    }
+    
     readonly QuicConnection connection;
     readonly ConcurrentDictionary<long, Task> activeStreams = [];
     readonly QpackDynamicTable peerDynamicTable = new(4096);
     readonly QpackInsertCountTracker insertCountTracker = new();
     readonly SemaphoreSlim qpackDecoderWriteLock = new(1, 1);
     readonly TaskCompletionSource<bool> initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    readonly QpackOutstandingStreamManager outstandingStreams = new();
 
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;

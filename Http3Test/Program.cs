@@ -623,3 +623,54 @@ while (stream38.Position < stream38.Length)
 }
 
 Console.WriteLine();
+
+Console.WriteLine(Convert.ToHexString(QpackDecoderStreamInstruction.EncodeStreamCancellation(4)));
+
+Console.WriteLine();
+
+var manager = new QpackOutstandingStreamManager();
+manager.Add(0);
+manager.Add(4);
+Console.WriteLine(manager.IsOutstanding(0)); // True
+Console.WriteLine(manager.IsOutstanding(4)); // True
+manager.Acknowledge(0);
+Console.WriteLine(manager.IsOutstanding(0)); // False
+Console.WriteLine(manager.IsOutstanding(4)); // True
+bool cancelled = manager.Cancel(4);
+Console.WriteLine(cancelled);                // True
+Console.WriteLine(manager.IsOutstanding(4)); // False
+
+Console.WriteLine();
+
+manager = new QpackOutstandingStreamManager();
+manager.Add(0);
+manager.Add(0);
+manager.Add(4);
+Console.WriteLine(manager.GetOutstandingCount(0)); // 2
+manager.Acknowledge(0);
+Console.WriteLine(manager.GetOutstandingCount(0)); // 1
+manager.Acknowledge(0);
+Console.WriteLine(manager.IsOutstanding(0)); // False
+manager.Cancel(4);
+Console.WriteLine(manager.IsOutstanding(4)); // False
+
+Console.WriteLine();
+
+manager = new QpackOutstandingStreamManager();
+manager.Add(0);
+Console.WriteLine(manager.IsOutstanding(0)); // True
+manager.Acknowledge(0);
+Console.WriteLine(manager.IsOutstanding(0)); // False
+
+Console.WriteLine();
+
+var representations = new[]
+{
+    QpackHeaderFieldEncoder.EncodeIndexedStatic(17)
+};
+var section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 0, baseIndex: 0, representations, referencesDynamicTable: false);
+
+Console.WriteLine(Convert.ToHexString(section.Data));
+Console.WriteLine(section.ReferencesDynamicTable);
+
+Console.WriteLine();

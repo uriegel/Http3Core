@@ -683,3 +683,29 @@ section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 1, baseIndex: 1, 
 
 Console.WriteLine(Convert.ToHexString(section.Data));
 Console.WriteLine(section.ReferencesDynamicTable);
+
+Console.WriteLine();
+
+representations =
+[
+    QpackHeaderFieldEncoder.EncodeIndexedStaticRepresentation(17),
+    QpackHeaderFieldEncoder.EncodeIndexedDynamicRepresentation(0),
+    QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceStaticRepresentation(44, "application/json"),
+    QpackHeaderFieldEncoder.EncodeLiteralWithNameReferenceDynamicRepresentation(0, "world")
+];
+section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 1, baseIndex: 1, representations, maximumTableCapacity: 4096);
+Console.WriteLine(Convert.ToHexString(section.Data));
+Console.WriteLine(section.ReferencesDynamicTable);
+
+Console.WriteLine();
+
+representations =
+[
+    QpackHeaderFieldEncoder.EncodeIndexedStaticRepresentation(17),
+    QpackHeaderFieldEncoder.EncodeLiteralWithLiteralNameRepresentation("x-custom-header", "hello")
+];
+section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 1, baseIndex: 1, representations, maximumTableCapacity: 4096);
+Console.WriteLine(Convert.ToHexString(section.Data));
+Console.WriteLine(section.ReferencesDynamicTable);
+
+Console.WriteLine();

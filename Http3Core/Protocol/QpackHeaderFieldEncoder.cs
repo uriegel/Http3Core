@@ -98,7 +98,25 @@ public static class QpackHeaderFieldEncoder
 
     public static QpackEncodedRepresentation EncodeIndexedStaticRepresentation(int index)
         =>new(EncodeIndexedStatic(index), ReferencesDynamicTable: false);
-    
+
     public static QpackEncodedRepresentation EncodeIndexedDynamicRepresentation(int relativeIndex)
         => new(EncodeIndexedDynamic(relativeIndex), ReferencesDynamicTable: true);
+        
+    public static QpackEncodedRepresentation EncodeLiteralWithNameReferenceStaticRepresentation(int nameIndex,
+        string value, bool neverIndexed = false)
+        => new(EncodeLiteralWithNameReferenceStatic(nameIndex, value, neverIndexed),ReferencesDynamicTable: false);
+
+    public static QpackEncodedRepresentation EncodeLiteralWithLiteralNameRepresentation(string name, string value, bool neverIndexed = false)
+        => new(EncodeLiteralWithLiteralName(name, value, neverIndexed), ReferencesDynamicTable: false);
+
+    public static QpackEncodedRepresentation EncodeLiteralWithNameReferenceDynamicRepresentation(int relativeIndex,
+        string value, bool neverIndexed = false)
+        => new(EncodeLiteralWithNameReferenceDynamic(relativeIndex, value, neverIndexed), ReferencesDynamicTable: true);
+    
+    public static QpackEncodedRepresentation EncodeIndexedPostBaseRepresentation(int postBaseIndex)
+        => new(EncodeIndexedPostBase(postBaseIndex), ReferencesDynamicTable: true);
+
+    public static QpackEncodedRepresentation EncodeLiteralWithPostBaseNameReferenceRepresentation(int postBaseIndex,
+        string value, bool neverIndexed = false)
+        => new(EncodeLiteralWithPostBaseNameReference(postBaseIndex, value, neverIndexed),ReferencesDynamicTable: true);
 }

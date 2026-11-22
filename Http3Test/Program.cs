@@ -666,11 +666,20 @@ Console.WriteLine();
 
 var representations = new[]
 {
-    QpackHeaderFieldEncoder.EncodeIndexedStatic(17)
+    QpackHeaderFieldEncoder.EncodeIndexedStaticRepresentation(17)
 };
-var section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 0, baseIndex: 0, representations, referencesDynamicTable: false);
+var section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 0, baseIndex: 0, representations, 4096);
 
 Console.WriteLine(Convert.ToHexString(section.Data));
 Console.WriteLine(section.ReferencesDynamicTable);
 
 Console.WriteLine();
+
+representations =
+[
+    QpackHeaderFieldEncoder.EncodeIndexedStaticRepresentation(17),
+    QpackHeaderFieldEncoder.EncodeIndexedDynamicRepresentation(0)];
+section = QpackFieldSectionEncoder.Encode(requiredInsertCount: 1, baseIndex: 1, representations, 4096);
+
+Console.WriteLine(Convert.ToHexString(section.Data));
+Console.WriteLine(section.ReferencesDynamicTable);

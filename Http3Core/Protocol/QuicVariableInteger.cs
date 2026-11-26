@@ -58,6 +58,26 @@ public static class QuicVariableInteger
 
         return value;
     }
+
+    public static async ValueTask<(bool Success, ulong Value)> TryReadAsync(Stream stream, CancellationToken cancellationToken = default)
+    {
+        var firstByte = new byte[1];
+        int bytesRead = await stream.ReadAsync(firstByte.AsMemory(), cancellationToken);
+        if (bytesRead == 0)
+            return (false, 0);
+
+        int length = 1 << (firstByte[0] >> 6);
+        var bytes = new byte[length];
+        bytes[0] = (byte)(firstByte[0] & 0x3F);
+        if (length > 1)
+            await stream.ReadExactlyAsync(bytes.AsMemory(1), cancellationToken);
+
+        ulong value = 0;
+        foreach (byte b in bytes)
+            value = (value << 8) | b;
+
+        return (true, value);
+    }    
     
     const ulong MaxValue = 0x3FFF_FFFF_FFFF_FFFF;
 }    

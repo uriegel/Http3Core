@@ -1,0 +1,1 @@
+public sealed record QpackOutstandingFieldSection(IReadOnlySet<ulong> ReferencedEntries);

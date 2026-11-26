@@ -200,20 +200,17 @@ public sealed class Http3Connection
         {
             while (!cancellationToken.IsCancellationRequested)
             {
+                var previousInsertCount = peerDynamicTable.InsertCount;
                 await QpackEncoderStreamInstruction.ReadAsync(stream, peerDynamicTable, cancellationToken);
-                insertCountTracker.NotifyInsertCountChanged();
-                Console.WriteLine($"QPACK Insert Count: {peerDynamicTable.InsertCount}");
-
-                int previousInsertCount = peerDynamicTable.InsertCount;
-                await QpackEncoderStreamInstruction.ReadAsync(stream, peerDynamicTable, cancellationToken);
-                int newInsertCount = peerDynamicTable.InsertCount;
+                var newInsertCount = peerDynamicTable.InsertCount;
                 insertCountTracker.NotifyInsertCountChanged();
                 if (newInsertCount > previousInsertCount)
                 {
-                    ulong increment = (ulong)(newInsertCount - previousInsertCount);
-                    byte[] instruction = QpackDecoderStreamInstruction.EncodeInsertCountIncrement(increment);
+                    var increment = (ulong)(newInsertCount - previousInsertCount);
+                    var instruction = QpackDecoderStreamInstruction.EncodeInsertCountIncrement(increment);
                     await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
                 }
+
                 Console.WriteLine($"QPACK Insert Count: {newInsertCount}");
             }
         }
@@ -261,47 +258,78 @@ public sealed class Http3Connection
 
     async Task HandleRequestStreamAsync(QuicStream stream, CancellationToken cancellationToken)
     {
-        // Read the first HTTP/3 frame.
-        var frame = await Http3FrameReader.ReadAsync(stream, cancellationToken);
-        if (frame.Type != 0x01) // HEADERS
-            throw new InvalidDataException($"Expected HEADERS frame, received 0x{frame.Type:X}.");
-
-        Console.WriteLine($"Received HEADERS frame on stream {stream.Id}");
-
+        bool headersReceived = false;
         bool referencesDynamicTable = false;
 
-        using var payload = new MemoryStream(frame.Payload);
-        try
+        using var requestBody = new MemoryStream();
+        while (await Http3FrameReader.TryReadAsync(stream, cancellationToken) is { } frame)
         {
-            var fields = await QpackFieldSectionDecoder.DecodeAsync(payload, peerDynamicTable, insertCountTracker,
-                (ulong)peerDynamicTable.InsertCount, 4096,
-                () =>
-                {
-                    if (!referencesDynamicTable)
+            switch (frame.Type)
+            {
+                case 0x01: // HEADERS
                     {
-                        referencesDynamicTable = true;
-                        outstandingStreams.Add(stream.Id);
+                        if (headersReceived)
+                            throw new InvalidDataException("Unexpected additional HEADERS frame.");
+
+                        headersReceived = true;
+                        Console.WriteLine($"Received HEADERS frame on stream {stream.Id}");
+
+                        using var payload = new MemoryStream(frame.Payload);
+                        try
+                        {
+                            var fields = await QpackFieldSectionDecoder.DecodeAsync(payload, peerDynamicTable, insertCountTracker,
+                                (ulong)peerDynamicTable.InsertCount, 4096, () =>
+                                {
+                                    if (!referencesDynamicTable)
+                                    {
+                                        referencesDynamicTable = true;
+                                        outstandingStreams.Add(stream.Id);
+                                    }
+                                },
+                                cancellationToken);
+
+                            foreach (var field in fields)
+                                Console.WriteLine($"{field.Name}: {field.Value}");
+                        }
+                        catch
+                        {
+                            if (referencesDynamicTable)
+                                await SendQpackStreamCancellationAsync(stream.Id, cancellationToken);
+
+                            throw;
+                        }
+
+                        if (referencesDynamicTable)
+                        {
+                            byte[] instruction = QpackDecoderStreamInstruction .EncodeSectionAcknowledgment(stream.Id);
+                            await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
+                            Console.WriteLine($"Section Acknowledgment sent for stream {stream.Id}");
+                        }
+
+                        break;
                     }
-                }, cancellationToken);
-            foreach (var field in fields)
-                Console.WriteLine($"{field.Name}: {field.Value}");
-        }
-        catch
-        {
-            if (referencesDynamicTable)
-                await SendQpackStreamCancellationAsync(stream.Id, cancellationToken);
-            throw;
+
+                case 0x00: // DATA
+                    {
+                        if (!headersReceived)
+                            throw new InvalidDataException("DATA received before HEADERS.");
+
+                        await requestBody.WriteAsync(frame.Payload, cancellationToken);
+                        break;
+                    }
+
+                default:
+                    Console.WriteLine($"Ignoring frame type 0x{frame.Type:X}.");
+                    break;
+            }
         }
 
-        // Send Section Acknowledgment if dynamic table entries were referenced.
-        if (referencesDynamicTable)
-        {
-            byte[] instruction = QpackDecoderStreamInstruction.EncodeSectionAcknowledgment(stream.Id);
-            await WriteQpackDecoderInstructionAsync(instruction, cancellationToken);
+        if (!headersReceived)
+            throw new InvalidDataException("Request contains no HEADERS frame.");
 
-            Console.WriteLine($"Section Acknowledgment sent for stream {stream.Id}");
-        }
-    }    
+        byte[] body = requestBody.ToArray();
+        Console.WriteLine($"Request completed on stream {stream.Id}, body length: {body.Length}");
+    }
     
     async Task SendQpackStreamCancellationAsync(long streamId, CancellationToken cancellationToken)
     {
@@ -323,3 +351,4 @@ public sealed class Http3Connection
     QuicStream? qpackDecoderStream;
     int controlStreamReceived;
 }
+

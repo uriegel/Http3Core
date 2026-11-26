@@ -39,21 +39,25 @@ using var cancellation = new CancellationTokenSource();
 
 var http3Connection = new Http3Connection(connection);
 var http3Task = http3Connection.RunAsync(cancellation.Token);
-
 Console.WriteLine("HTTP/3 connection started.");
 
 await http3Connection.Initialized;
+
 var encoderStream = http3Connection.QpackEncoderStream!;
+Console.WriteLine($"Client encoder stream ID: {encoderStream.Id}");
 byte[] instruction1 = QpackEncoderStreamInstruction.EncodeSetDynamicTableCapacity(4096);
 byte[] instruction2 = QpackEncoderStreamInstruction.EncodeInsertWithoutNameReference("x-custom-header", "hello");
+Console.WriteLine($"Writing capacity: {Convert.ToHexString(instruction1)}");
 await encoderStream.WriteAsync(instruction1);
+Console.WriteLine($"Writing insertion: {Convert.ToHexString(instruction2)}");
 await encoderStream.WriteAsync(instruction2);
+
+Console.WriteLine("QPACK encoder instructions written.");
 
 var requestStream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional);
 byte[] fieldSection = [0x02, 0x00, 0x80];
 
 // Register the dynamic-table reference before sending HEADERS.
-http3Connection.RegisterOutstandingFieldSection(requestStream.Id, referencesDynamicTable: true);
 http3Connection.RegisterOutstandingFieldSection(requestStream.Id, referencesDynamicTable: true);
 await Http3FrameWriter.WriteAsync(requestStream, 0x01, fieldSection);
 
@@ -61,27 +65,14 @@ Console.WriteLine(
     $"Outstanding before ACK: " +
     $"{http3Connection.GetOutstandingFieldSectionCount(requestStream.Id)}");
 
-await http3Connection.CancelQpackStreamAsync(requestStream.Id, cancellation.Token);
+// Signal that the request is complete.
+requestStream.CompleteWrites();
 
+// Wait for the server's Section Acknowledgment.
 await http3Connection.SectionAcknowledged;
 
 Console.WriteLine(
     $"Outstanding after ACK: " +
     $"{http3Connection.GetOutstandingFieldSectionCount(requestStream.Id)}");
-
-Console.WriteLine("Press ENTER to close the connection.");
-Console.ReadLine();
-
-// Stop HTTP/3 connection management.
-cancellation.Cancel();
-
-try
-{
-    await http3Task;
-}
-catch (OperationCanceledException)
-{
-    // Normal shutdown.
-}
 
 Console.WriteLine("HTTP/3 connection closed.");

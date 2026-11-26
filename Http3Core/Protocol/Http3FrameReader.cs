@@ -14,4 +14,21 @@ public static class Http3FrameReader
             await stream.ReadExactlyAsync(payload, cancellationToken);
         return new Http3Frame(type, payload);
     }
+
+    public static async ValueTask<Http3Frame?> TryReadAsync(Stream stream, CancellationToken cancellationToken = default)
+    {
+        var (success, type) = await QuicVariableInteger.TryReadAsync(stream, cancellationToken);
+        if (!success)
+            return null;
+
+        var length = await QuicVariableInteger.ReadAsync(stream, cancellationToken);
+        if (length > int.MaxValue)
+            throw new InvalidDataException("HTTP/3 frame is too large.");
+
+        var payload = new byte[(int)length];
+        if (payload.Length > 0)
+            await stream.ReadExactlyAsync(payload, cancellationToken);
+
+        return new Http3Frame(type, payload);
+    }    
 }

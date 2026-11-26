@@ -709,3 +709,11 @@ Console.WriteLine(Convert.ToHexString(section.Data));
 Console.WriteLine(section.ReferencesDynamicTable);
 
 Console.WriteLine();
+
+byte[] dataFrame = [0x00, 0x03, 0x41, 0x42, 0x43];
+using var stream39 = new MemoryStream(dataFrame);
+frame = await Http3FrameReader.TryReadAsync(stream39);
+Console.WriteLine(frame?.Type); // 0
+Console.WriteLine(System.Text.Encoding.ASCII.GetString(frame!.Payload)); // ABC
+
+Console.WriteLine();
